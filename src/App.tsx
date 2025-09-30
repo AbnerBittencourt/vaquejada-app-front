@@ -11,6 +11,7 @@ import EventoDetalhes from "./pages/EventoDetalhes";
 import PerfilCorredor from "./pages/PerfilCorredor";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import PerfilAdmin from "./pages/PerfilAdmin";
 import ComprarSenhas from "./pages/ComprarSenhas";
 import MeusIngressos from "./pages/MeusIngressos";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/meus-ingressos" element={<MeusIngressos />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/perfil" element={<PerfilAdmin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

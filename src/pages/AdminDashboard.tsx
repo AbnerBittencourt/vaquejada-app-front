@@ -1,10 +1,69 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Calendar, Users, DollarSign, Settings, LogOut, BarChart3, CheckCircle } from "lucide-react";
+import { Shield, Calendar, Users, DollarSign, Settings, LogOut, BarChart3, CheckCircle, User } from "lucide-react";
 import { Link } from "react-router-dom";
+import { CriarEventoModal } from "@/components/CriarEventoModal";
+import { DetalhesInscricaoModal } from "@/components/DetalhesInscricaoModal";
 
 const AdminDashboard = () => {
+  const [inscricaoSelecionada, setInscricaoSelecionada] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const mockInscricoes = [
+    { 
+      corredor: "João Silva", 
+      cpf: "123.456.789-00",
+      telefone: "(87) 98888-7777",
+      email: "joao@email.com",
+      evento: "Vaquejada Santa Cruz", 
+      categoria: "Amador", 
+      haras: "Haras Vale Verde",
+      cavalo: "Relâmpago",
+      registroCavalo: "ABC-12345",
+      data: "Hoje, 14:30",
+      valor: "R$ 150,00",
+      status: "Confirmado",
+      checkin: false
+    },
+    { 
+      corredor: "Maria Santos", 
+      cpf: "987.654.321-00",
+      telefone: "(87) 99999-8888",
+      email: "maria@email.com",
+      evento: "Vaquejada Santa Cruz", 
+      categoria: "Profissional", 
+      haras: "Haras Campeão",
+      cavalo: "Trovão",
+      registroCavalo: "ABC-67890",
+      data: "Hoje, 13:15",
+      valor: "R$ 200,00",
+      status: "Confirmado",
+      checkin: true
+    },
+    { 
+      corredor: "Pedro Costa", 
+      cpf: "456.789.123-00",
+      telefone: "(87) 97777-6666",
+      email: "pedro@email.com",
+      evento: "Rodeio de Verão", 
+      categoria: "Aspirante", 
+      haras: "Haras Estrela",
+      cavalo: "Furacão",
+      registroCavalo: "ABC-11111",
+      data: "Ontem, 18:45",
+      valor: "R$ 120,00",
+      status: "Confirmado",
+      checkin: false
+    }
+  ];
+
+  const handleVerDetalhes = (inscricao: any) => {
+    setInscricaoSelecionada(inscricao);
+    setModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -18,6 +77,11 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/admin/perfil">
+                <User className="h-5 w-5" />
+              </Link>
+            </Button>
             <Button variant="ghost" size="icon" asChild>
               <Link to="/admin/configuracoes">
                 <Settings className="h-5 w-5" />
@@ -93,7 +157,7 @@ const AdminDashboard = () => {
           <TabsContent value="eventos" className="mt-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Meus Eventos</h2>
-              <Button>Criar novo evento</Button>
+              <CriarEventoModal />
             </div>
             <div className="space-y-4">
               {[
@@ -136,19 +200,18 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { corredor: "João Silva", evento: "Vaquejada Santa Cruz", categoria: "Amador", data: "Hoje, 14:30" },
-                    { corredor: "Maria Santos", evento: "Vaquejada Santa Cruz", categoria: "Profissional", data: "Hoje, 13:15" },
-                    { corredor: "Pedro Costa", evento: "Rodeio de Verão", categoria: "Aspirante", data: "Ontem, 18:45" }
-                  ].map((item, i) => (
+                  {mockInscricoes.map((item, i) => (
                     <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
                       <div>
                         <p className="font-medium">{item.corredor}</p>
                         <p className="text-sm text-muted-foreground">{item.evento} - {item.categoria}</p>
+                        <p className="text-xs text-muted-foreground">{item.haras}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">{item.data}</p>
-                        <Button variant="ghost" size="sm">Ver detalhes</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleVerDetalhes(item)}>
+                          Ver detalhes
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -242,6 +305,12 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <DetalhesInscricaoModal 
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        inscricao={inscricaoSelecionada}
+      />
     </div>
   );
 };

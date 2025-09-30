@@ -97,9 +97,13 @@ const PerfilCorredor = () => {
                       <Label htmlFor="email">E-mail</Label>
                       <Input id="email" type="email" defaultValue="joao@email.com" />
                     </div>
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="equipe">Equipe/Estábulo</Label>
                       <Input id="equipe" defaultValue="Campeões do Agreste" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="haras">Haras</Label>
+                      <Input id="haras" defaultValue="Haras Vale Verde" placeholder="Nome do haras" />
                     </div>
                   </div>
                   <Button className="w-full md:w-auto">Salvar alterações</Button>
