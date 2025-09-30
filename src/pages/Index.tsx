@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Search, Users } from "lucide-react";
+import { Calendar, MapPin, Search, Users, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const events = [
   {
@@ -35,6 +36,8 @@ const events = [
 ];
 
 const Index = () => {
+  const { user, logout, isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -48,20 +51,40 @@ const Index = () => {
             <Link to="/" className="text-foreground hover:text-primary transition-colors">
               Eventos
             </Link>
-            <Link to="/meus-ingressos" className="text-foreground hover:text-primary transition-colors">
-              Meus Ingressos
-            </Link>
-            <Link to="/perfil-corredor" className="text-foreground hover:text-primary transition-colors">
-              Perfil do Corredor
-            </Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/meus-ingressos" className="text-foreground hover:text-primary transition-colors">
+                  Meus Ingressos
+                </Link>
+                {user?.tipo === "corredor" && (
+                  <Link to="/perfil-corredor" className="text-foreground hover:text-primary transition-colors">
+                    Perfil do Corredor
+                  </Link>
+                )}
+              </>
+            )}
           </nav>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
-              <Link to="/login">Entrar</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/cadastro">Cadastrar</Link>
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm text-muted-foreground hidden md:block">
+                  Olá, {user?.nome}
+                </span>
+                <Button variant="ghost" onClick={logout} className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link to="/login">Entrar</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/cadastro">Cadastrar</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>

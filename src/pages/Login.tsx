@@ -4,8 +4,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Login = () => {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login, loginGoogle } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await login(email, senha);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await loginGoogle();
+    } catch (error) {
+      toast.error("Erro ao fazer login com Google");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -19,25 +51,46 @@ const Login = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" placeholder="seu@email.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" placeholder="••••••••" />
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="••••••••"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
+              />
             </div>
             <div className="flex items-center justify-between">
               <Link to="/recuperar-senha" className="text-sm text-primary hover:underline">
                 Esqueceu a senha?
               </Link>
             </div>
-          </div>
 
-          <Button className="w-full" size="lg">
-            Entrar
-          </Button>
+            <Button className="w-full" size="lg" type="submit" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+
+          <div className="bg-accent/50 rounded-lg p-4 text-sm">
+            <p className="font-semibold mb-2">Contas de teste:</p>
+            <p className="text-muted-foreground">• usuario@email.com / 123456</p>
+            <p className="text-muted-foreground">• corredor@email.com / 123456</p>
+            <p className="text-muted-foreground">• admin@parque.com / admin123</p>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -48,7 +101,14 @@ const Login = () => {
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" size="lg">
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            size="lg"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            type="button"
+          >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

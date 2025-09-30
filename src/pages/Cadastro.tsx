@@ -5,8 +5,59 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Cadastro = () => {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmSenha, setConfirmSenha] = useState("");
+  const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { cadastrar, loginGoogle } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!aceitouTermos) {
+      toast.error("Você precisa aceitar os termos de uso");
+      return;
+    }
+
+    if (senha !== confirmSenha) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+
+    if (senha.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await cadastrar({ nome, email, senha });
+    } catch (error) {
+      toast.error("Erro ao criar conta");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      await loginGoogle();
+    } catch (error) {
+      toast.error("Erro ao cadastrar com Google");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -20,29 +71,67 @@ const Cadastro = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome completo</Label>
-              <Input id="nome" placeholder="Seu nome completo" />
+              <Input 
+                id="nome" 
+                placeholder="Seu nome completo"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" placeholder="seu@email.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" type="tel" placeholder="(00) 00000-0000" />
+              <Input 
+                id="telefone" 
+                type="tel" 
+                placeholder="(00) 00000-0000"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" placeholder="••••••••" />
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="••••••••"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
+                minLength={6}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirmar senha</Label>
-              <Input id="confirm-password" type="password" placeholder="••••••••" />
+              <Input 
+                id="confirm-password" 
+                type="password" 
+                placeholder="••••••••"
+                value={confirmSenha}
+                onChange={(e) => setConfirmSenha(e.target.value)}
+                required
+              />
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox id="terms" />
+              <Checkbox 
+                id="terms"
+                checked={aceitouTermos}
+                onCheckedChange={(checked) => setAceitouTermos(checked as boolean)}
+              />
               <label
                 htmlFor="terms"
                 className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -57,11 +146,11 @@ const Cadastro = () => {
                 </Link>
               </label>
             </div>
-          </div>
 
-          <Button className="w-full" size="lg">
-            Criar conta
-          </Button>
+            <Button className="w-full" size="lg" type="submit" disabled={loading}>
+              {loading ? "Criando conta..." : "Criar conta"}
+            </Button>
+          </form>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -72,7 +161,14 @@ const Cadastro = () => {
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" size="lg">
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            size="lg"
+            onClick={handleGoogleSignup}
+            disabled={loading}
+            type="button"
+          >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
