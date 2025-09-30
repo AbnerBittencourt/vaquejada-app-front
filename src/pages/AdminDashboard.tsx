@@ -224,8 +224,8 @@ const AdminDashboard = () => {
             <div className="grid gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Resumo Financeiro</CardTitle>
-                  <CardDescription>Últimos 30 dias</CardDescription>
+                  <CardTitle>Resumo Financeiro Geral</CardTitle>
+                  <CardDescription>Últimos 30 dias - Todos os eventos</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -246,16 +246,92 @@ const AdminDashboard = () => {
               </Card>
 
               <Card>
+                <CardHeader>
+                  <CardTitle>Financeiro por Evento</CardTitle>
+                  <CardDescription>Detalhamento de receita por evento</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {[
+                      { 
+                        nome: "Vaquejada do Parque Santa Cruz", 
+                        data: "15/04/2025", 
+                        inscricoes: 123,
+                        receitaBruta: "R$ 18.450,00",
+                        taxas: "R$ 922,50",
+                        receitaLiquida: "R$ 17.527,50",
+                        status: "Confirmado"
+                      },
+                      { 
+                        nome: "Rodeio de Verão 2025", 
+                        data: "20/05/2025", 
+                        inscricoes: 89,
+                        receitaBruta: "R$ 17.800,00",
+                        taxas: "R$ 890,00",
+                        receitaLiquida: "R$ 16.910,00",
+                        status: "Confirmado"
+                      },
+                      { 
+                        nome: "Vaquejada de São João", 
+                        data: "24/06/2025", 
+                        inscricoes: 35,
+                        receitaBruta: "R$ 5.250,00",
+                        taxas: "R$ 262,50",
+                        receitaLiquida: "R$ 4.987,50",
+                        status: "Em andamento"
+                      }
+                    ].map((evento, i) => (
+                      <Card key={i} className="border-2">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-lg">{evento.nome}</CardTitle>
+                              <CardDescription>{evento.data} • {evento.inscricoes} inscrições</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Receita bruta</span>
+                              <p className="font-bold text-lg">{evento.receitaBruta}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Taxas</span>
+                              <p className="font-medium">-{evento.taxas}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Receita líquida</span>
+                              <p className="font-bold text-lg text-primary">{evento.receitaLiquida}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              Exportar CSV
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              Ver detalhes
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Relatórios</CardTitle>
-                    <CardDescription>Exporte dados financeiros</CardDescription>
+                    <CardTitle>Relatórios Gerais</CardTitle>
+                    <CardDescription>Exporte dados consolidados</CardDescription>
                   </div>
                   <BarChart3 className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button variant="outline" className="w-full justify-start">
-                    Exportar vendas (CSV)
+                    Exportar todas as vendas (CSV)
                   </Button>
                   <Button variant="outline" className="w-full justify-start">
                     Relatório completo (PDF)
