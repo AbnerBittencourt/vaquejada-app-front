@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Calendar, Users, DollarSign, Settings, LogOut, BarChart3, CheckCircle, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Shield, Calendar, Users, DollarSign, Settings, LogOut, BarChart3, CheckCircle, User, Search, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CriarEventoModal } from "@/components/CriarEventoModal";
 import { DetalhesInscricaoModal } from "@/components/DetalhesInscricaoModal";
@@ -10,6 +12,12 @@ import { DetalhesInscricaoModal } from "@/components/DetalhesInscricaoModal";
 const AdminDashboard = () => {
   const [inscricaoSelecionada, setInscricaoSelecionada] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // Filtros
+  const [filtroEvento, setFiltroEvento] = useState<string>("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("todos");
+  const [filtroCheckin, setFiltroCheckin] = useState<string>("todos");
+  const [buscaNome, setBuscaNome] = useState<string>("");
 
   const mockInscricoes = [
     { 
@@ -63,6 +71,19 @@ const AdminDashboard = () => {
     setInscricaoSelecionada(inscricao);
     setModalOpen(true);
   };
+
+  // Função para filtrar inscrições
+  const inscricoesFiltradas = mockInscricoes.filter((inscricao) => {
+    const matchEvento = filtroEvento === "todos" || inscricao.evento === filtroEvento;
+    const matchCategoria = filtroCategoria === "todos" || inscricao.categoria === filtroCategoria;
+    const matchCheckin = filtroCheckin === "todos" || 
+      (filtroCheckin === "feito" && inscricao.checkin) ||
+      (filtroCheckin === "pendente" && !inscricao.checkin);
+    const matchNome = buscaNome === "" || 
+      inscricao.corredor.toLowerCase().includes(buscaNome.toLowerCase());
+    
+    return matchEvento && matchCategoria && matchCheckin && matchNome;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,12 +216,71 @@ const AdminDashboard = () => {
           <TabsContent value="inscricoes" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Inscrições Recentes</CardTitle>
-                <CardDescription>Últimas inscrições nos seus eventos</CardDescription>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <CardTitle>Inscrições</CardTitle>
+                    <CardDescription>
+                      {inscricoesFiltradas.length} {inscricoesFiltradas.length === 1 ? 'inscrição encontrada' : 'inscrições encontradas'}
+                    </CardDescription>
+                  </div>
+                  <Filter className="h-5 w-5 text-muted-foreground" />
+                </div>
+                
+                {/* Filtros */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome..."
+                      value={buscaNome}
+                      onChange={(e) => setBuscaNome(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <Select value={filtroEvento} onValueChange={setFiltroEvento}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os eventos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os eventos</SelectItem>
+                      <SelectItem value="Vaquejada Santa Cruz">Vaquejada Santa Cruz</SelectItem>
+                      <SelectItem value="Rodeio de Verão">Rodeio de Verão</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as categorias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas as categorias</SelectItem>
+                      <SelectItem value="Amador">Amador</SelectItem>
+                      <SelectItem value="Profissional">Profissional</SelectItem>
+                      <SelectItem value="Aspirante">Aspirante</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filtroCheckin} onValueChange={setFiltroCheckin}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status check-in" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="feito">Check-in feito</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockInscricoes.map((item, i) => (
+                  {inscricoesFiltradas.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Nenhuma inscrição encontrada com os filtros selecionados
+                    </div>
+                  ) : (
+                    inscricoesFiltradas.map((item, i) => (
                     <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
                       <div>
                         <p className="font-medium">{item.corredor}</p>
@@ -213,8 +293,9 @@ const AdminDashboard = () => {
                           Ver detalhes
                         </Button>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
