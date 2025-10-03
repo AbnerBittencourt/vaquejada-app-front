@@ -452,7 +452,7 @@ const AdminDashboard = () => {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 bg-gradient-vaquejada rounded-xl flex items-center justify-center">
+                          <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center">
                             <Calendar className="h-6 w-6 text-primary-foreground" />
                           </div>
                           <div className="flex-1">
@@ -628,7 +628,7 @@ const AdminDashboard = () => {
                         className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border hover:border-primary/30 transition-all group"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-gradient-vaquejada rounded-full flex items-center justify-center">
+                          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
                             <User className="h-5 w-5 text-primary-foreground" />
                           </div>
                           <div>
@@ -662,7 +662,7 @@ const AdminDashboard = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleVerDetalhes(inscricao)}
-                            className="mt-2 rounded-xl hover:bg-primary/10"
+                            className="mt-2 rounded-xl hover:bg-[#AF6B00] hover:text-white transition-colors"
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Ver detalhes

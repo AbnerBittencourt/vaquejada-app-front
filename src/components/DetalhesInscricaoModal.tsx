@@ -132,7 +132,7 @@ export const DetalhesInscricaoModal = ({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20 border-4 border-primary/10">
-                <AvatarFallback className="text-lg font-bold bg-gradient-vaquejada text-primary-foreground">
+                <AvatarFallback className="text-lg font-bold bg-yellow-400 text-yellow-900">
                   {runnerInitials}
                 </AvatarFallback>
               </Avatar>
@@ -297,8 +297,8 @@ export const DetalhesInscricaoModal = ({
                         handleStatusChange(SubscriptionStatusEnum.CANCELLED)
                       }
                       disabled={loading}
-                      variant="outline"
-                      className="text-red-600 border-red-600 hover:bg-red-50"
+                      variant="destructive"
+                      className="bg-red-600 hover:bg-red-700 text-white border-none"
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Cancelar Inscrição
