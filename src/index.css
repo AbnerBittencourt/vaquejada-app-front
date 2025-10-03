@@ -2,111 +2,157 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Vaquejada Modern Theme - Cores específicas com bom contraste */
 
 @layer base {
   :root {
-    /* Vaquejada Design System - Cores terrosas e vibrantes */
-    --background: 35 25% 96%;
-    --foreground: 25 35% 15%;
+    /* Cores base usando as cores específicas */
+    --background: 30 5% 12%; /* #22211F - Quase preto terroso */
+    --foreground: 0 0% 98%; /* Branco suave para contraste */
 
-    --card: 30 20% 98%;
-    --card-foreground: 25 35% 15%;
+    --card: 30 6% 15%; /* Tom levemente mais claro que o background */
+    --card-foreground: 0 0% 98%;
 
-    --popover: 30 20% 98%;
-    --popover-foreground: 25 35% 15%;
+    --popover: 30 6% 15%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Tom couro/marrom rico */
-    --primary: 25 45% 35%;
-    --primary-foreground: 35 25% 98%;
+    /* Primary - Amarelo ouro vibrante #FFC200 */
+    --primary: 45 100% 50%;
+    --primary-foreground: 30 5% 12%;
 
-    /* Bege areia */
-    --secondary: 35 20% 88%;
-    --secondary-foreground: 25 45% 35%;
+    /* Secondary - Marrom médio #484139 */
+    --secondary: 30 8% 22%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 35 15% 90%;
-    --muted-foreground: 25 20% 45%;
+    --muted: 30 6% 18%;
+    --muted-foreground: 30 5% 70%;
 
-    /* Laranja vibrante (energia do rodeio) */
-    --accent: 18 85% 55%;
-    --accent-foreground: 35 25% 98%;
+    /* Accent - Amarelo mais suave para detalhes */
+    --accent: 45 90% 60%;
+    --accent-foreground: 30 5% 12%;
 
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 35 25% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 35 20% 85%;
-    --input: 35 20% 85%;
-    --ring: 25 45% 35%;
+    --border: 30 8% 25%;
+    --input: 30 8% 25%;
+    --ring: 45 100% 50%;
 
     --radius: 0.75rem;
 
-    /* Gradientes personalizados */
-    --gradient-hero: linear-gradient(135deg, hsl(25 45% 35%) 0%, hsl(18 85% 55%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(30 20% 98%) 0%, hsl(35 25% 96%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(18 85% 55%) 0%, hsl(15 90% 60%) 100%);
-    
-    /* Sombras elegantes */
-    --shadow-soft: 0 2px 8px hsl(25 45% 35% / 0.08);
-    --shadow-medium: 0 4px 16px hsl(25 45% 35% / 0.12);
-    --shadow-strong: 0 8px 24px hsl(25 45% 35% / 0.16);
+    /* Gradientes usando as cores específicas */
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(30 5% 12%) 0%,
+      hsl(30 8% 22%) 50%,
+      hsl(45 100% 50% / 0.8) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(30 6% 15%) 0%,
+      hsl(30 7% 18%) 100%
+    );
+    --gradient-accent: linear-gradient(
+      135deg,
+      hsl(45 100% 50%) 0%,
+      hsl(45 90% 60%) 100%
+    );
+    --gradient-wood: linear-gradient(
+      135deg,
+      hsl(30 8% 22%) 0%,
+      hsl(30 10% 28%) 100%
+    );
+    --gradient-gold: linear-gradient(
+      135deg,
+      hsl(45 100% 50%) 0%,
+      hsl(40 100% 55%) 100%
+    );
+
+    /* Sombras com bom contraste */
+    --shadow-soft: 0 2px 8px hsl(0 0% 0% / 0.4);
+    --shadow-medium: 0 4px 16px hsl(0 0% 0% / 0.5);
+    --shadow-strong: 0 8px 24px hsl(0 0% 0% / 0.6);
 
     /* Transições suaves */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --sidebar-background: 30 20% 98%;
-    --sidebar-foreground: 25 35% 15%;
-    --sidebar-primary: 25 45% 35%;
-    --sidebar-primary-foreground: 35 25% 98%;
-    --sidebar-accent: 35 15% 90%;
-    --sidebar-accent-foreground: 25 45% 35%;
-    --sidebar-border: 35 20% 85%;
-    --sidebar-ring: 18 85% 55%;
+    --sidebar-background: 30 6% 14%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 30 5% 12%;
+    --sidebar-accent: 30 7% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 30 8% 25%;
+    --sidebar-ring: 45 100% 50%;
   }
 
-  .dark {
-    --background: 25 30% 8%;
-    --foreground: 35 25% 96%;
+  .light {
+    /* Light mode com contraste mantido */
+    --background: 0 0% 98%; /* Branco suave */
+    --foreground: 30 5% 12%; /* #22211F para texto */
 
-    --card: 25 25% 12%;
-    --card-foreground: 35 25% 96%;
+    --card: 0 0% 100%; /* Branco puro */
+    --card-foreground: 30 5% 12%;
 
-    --popover: 25 25% 12%;
-    --popover-foreground: 35 25% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 5% 12%;
 
-    --primary: 18 85% 55%;
-    --primary-foreground: 25 30% 8%;
+    --primary: 45 100% 50%; /* #FFC200 mantido */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 25 20% 18%;
-    --secondary-foreground: 35 25% 96%;
+    --secondary: 30 5% 95%; /* Cinza muito claro */
+    --secondary-foreground: 30 5% 12%;
 
-    --muted: 25 20% 18%;
-    --muted-foreground: 35 15% 65%;
+    --muted: 30 5% 96%;
+    --muted-foreground: 30 5% 45%;
 
-    --accent: 18 85% 55%;
-    --accent-foreground: 35 25% 96%;
+    --accent: 45 90% 60%;
+    --accent-foreground: 30 5% 12%;
 
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 35 25% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 25 20% 22%;
-    --input: 25 20% 22%;
-    --ring: 18 85% 55%;
+    --border: 30 5% 90%;
+    --input: 30 5% 90%;
+    --ring: 45 100% 50%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(18 85% 55%) 0%, hsl(15 90% 60%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(25 25% 12%) 0%, hsl(25 30% 15%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(18 85% 55%) 0%, hsl(15 90% 60%) 100%);
+    /* Gradientes para light mode */
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(0 0% 98%) 0%,
+      hsl(45 100% 50% / 0.1) 50%,
+      hsl(45 100% 50% / 0.2) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(0 0% 100%) 0%,
+      hsl(30 5% 98%) 100%
+    );
+    --gradient-accent: linear-gradient(
+      135deg,
+      hsl(45 100% 50%) 0%,
+      hsl(45 90% 60%) 100%
+    );
+    --gradient-wood: linear-gradient(
+      135deg,
+      hsl(30 5% 95%) 0%,
+      hsl(30 5% 90%) 100%
+    );
+    --gradient-gold: linear-gradient(
+      135deg,
+      hsl(45 100% 50%) 0%,
+      hsl(40 100% 55%) 100%
+    );
 
-    --sidebar-background: 25 30% 8%;
-    --sidebar-foreground: 35 25% 96%;
-    --sidebar-primary: 18 85% 55%;
-    --sidebar-primary-foreground: 25 30% 8%;
-    --sidebar-accent: 25 20% 18%;
-    --sidebar-accent-foreground: 35 25% 96%;
-    --sidebar-border: 25 20% 22%;
-    --sidebar-ring: 18 85% 55%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 30 5% 12%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 5% 96%;
+    --sidebar-accent-foreground: 30 5% 12%;
+    --sidebar-border: 30 5% 90%;
+    --sidebar-ring: 45 100% 50%;
   }
 }
 
@@ -117,5 +163,92 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .bg-gradient-vaquejada {
+    background: var(--gradient-hero);
+  }
+
+  .bg-gradient-wood {
+    background: var(--gradient-wood);
+  }
+
+  .bg-gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .text-shadow-vaquejada {
+    text-shadow: 0 2px 4px hsl(0 0% 0% / 0.5);
+  }
+
+  .border-vaquejada {
+    border-color: hsl(var(--primary));
+  }
+
+  .ring-vaquejada {
+    --tw-ring-color: hsl(var(--primary));
+  }
+
+  /* Utilitários específicos para as cores hex */
+  .bg-dark-vaquejada {
+    background-color: #22211f;
+  }
+
+  .bg-gold-vaquejada {
+    background-color: #ffc200;
+  }
+
+  .bg-brown-vaquejada {
+    background-color: #484139;
+  }
+
+  .text-dark-vaquejada {
+    color: #22211f;
+  }
+
+  .text-gold-vaquejada {
+    color: #ffc200;
+  }
+
+  .text-brown-vaquejada {
+    color: #484139;
+  }
+
+  .border-gold-vaquejada {
+    border-color: #ffc200;
+  }
+
+  .border-brown-vaquejada {
+    border-color: #484139;
+  }
+}
+
+/* Estilos customizados para componentes específicos */
+@layer components {
+  .card-vaquejada {
+    @apply bg-card border-2 border-border/50 shadow-strong rounded-xl;
+  }
+
+  .btn-vaquejada {
+    @apply bg-gradient-gold text-dark-vaquejada font-bold shadow-medium hover:shadow-strong transition-all duration-200 hover:scale-105;
+  }
+
+  .btn-vaquejada-outline {
+    @apply border-2 border-gold-vaquejada text-foreground bg-transparent hover:bg-gold-vaquejada hover:text-dark-vaquejada transition-all duration-200;
+  }
+
+  .header-vaquejada {
+    @apply bg-dark-vaquejada border-b border-brown-vaquejada/30 backdrop-blur-sm;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px hsl(45 100% 50% / 0.5);
+  }
+
+  .border-glow {
+    box-shadow: 0 0 10px hsl(45 100% 50% / 0.3);
   }
 }
