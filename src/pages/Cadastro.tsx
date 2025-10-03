@@ -1,27 +1,35 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users } from "lucide-react";
+import { Users, ArrowLeft, Shield, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { formatCPF, formatPhone } from "@/utils/format-data.util";
 
 const Cadastro = () => {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [cpf, setCpf] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmSenha, setConfirmSenha] = useState("");
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { cadastrar, loginGoogle } = useAuth();
+  const { cadastrar } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!aceitouTermos) {
       toast.error("Você precisa aceitar os termos de uso");
       return;
@@ -39,7 +47,7 @@ const Cadastro = () => {
 
     setLoading(true);
     try {
-      await cadastrar({ nome, email, senha });
+      await cadastrar({ nome, email, senha, cpf, telefone });
     } catch (error) {
       toast.error("Erro ao criar conta");
     } finally {
@@ -47,157 +55,242 @@ const Cadastro = () => {
     }
   };
 
-  const handleGoogleSignup = async () => {
-    setLoading(true);
-    try {
-      await loginGoogle();
-    } catch (error) {
-      toast.error("Erro ao cadastrar com Google");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-center">
-            <Users className="h-12 w-12 text-primary" />
-          </div>
-          <div className="text-center">
-            <CardTitle className="text-2xl">Criar conta</CardTitle>
-            <CardDescription>Cadastre-se no Vaquei Fácil</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome completo</Label>
-              <Input 
-                id="nome" 
-                placeholder="Seu nome completo"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input 
-                id="telefone" 
-                type="tel" 
-                placeholder="(00) 00000-0000"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirmar senha</Label>
-              <Input 
-                id="confirm-password" 
-                type="password" 
-                placeholder="••••••••"
-                value={confirmSenha}
-                onChange={(e) => setConfirmSenha(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="terms"
-                checked={aceitouTermos}
-                onCheckedChange={(checked) => setAceitouTermos(checked as boolean)}
-              />
-              <label
-                htmlFor="terms"
-                className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Aceito os{" "}
-                <Link to="/termos" className="text-primary hover:underline">
-                  termos de uso
-                </Link>{" "}
-                e{" "}
-                <Link to="/privacidade" className="text-primary hover:underline">
-                  política de privacidade
-                </Link>
-              </label>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-primary/5 flex items-center justify-center p-4">
+      <div className="absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl"></div>
 
-            <Button className="w-full" size="lg" type="submit" disabled={loading}>
-              {loading ? "Criando conta..." : "Criar conta"}
-            </Button>
-          </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">ou continue com</span>
-            </div>
-          </div>
-
-          <Button 
-            variant="outline" 
-            className="w-full" 
-            size="lg"
-            onClick={handleGoogleSignup}
-            disabled={loading}
-            type="button"
+      <div className="w-full max-w-lg relative z-10">
+        <div className="text-center mb-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 group"
           >
-            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            Continuar com Google
-          </Button>
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            Voltar para eventos
+          </Link>
 
-          <div className="text-center text-sm text-muted-foreground">
-            Já tem uma conta?{" "}
-            <Link to="/login" className="text-primary hover:underline font-medium">
-              Entrar
-            </Link>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm"></div>
+              <Users className="h-10 w-10 text-primary relative z-10" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Vaquei Fácil
+            </h1>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <Card className="bg-card/80 backdrop-blur-sm border-2 shadow-2xl">
+          <CardHeader className="space-y-4 pb-6">
+            <div className="text-center">
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                Criar Conta
+              </CardTitle>
+              <CardDescription className="text-base">
+                Cadastre-se e comece a participar das melhores vaquejadas
+              </CardDescription>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label htmlFor="nome" className="text-sm font-medium">
+                    Nome completo *
+                  </Label>
+                  <Input
+                    id="nome"
+                    placeholder="Seu nome completo"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    required
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    E-mail *
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label htmlFor="cpf" className="text-sm font-medium">
+                    CPF *
+                  </Label>
+                  <Input
+                    id="cpf"
+                    type="text"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => {
+                      const v = formatCPF(e.target.value);
+                      setCpf(v);
+                    }}
+                    required
+                    maxLength={14}
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="telefone" className="text-sm font-medium">
+                    Telefone
+                  </Label>
+                  <Input
+                    id="telefone"
+                    type="tel"
+                    placeholder="(00) 00000-0000"
+                    value={telefone}
+                    onChange={(e) => {
+                      const v = formatPhone(e.target.value);
+                      setTelefone(v);
+                    }}
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Senha *
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    required
+                    minLength={6}
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label
+                    htmlFor="confirm-password"
+                    className="text-sm font-medium"
+                  >
+                    Confirmar senha *
+                  </Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmSenha}
+                    onChange={(e) => setConfirmSenha(e.target.value)}
+                    required
+                    className="rounded-xl border-2 focus:border-primary/50 transition-all bg-background/50"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-muted/30 rounded-xl p-4 border">
+                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Sua senha deve conter:
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2
+                      className={`h-3 w-3 ${
+                        senha.length >= 6
+                          ? "text-green-500"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                    <span>Mínimo 6 caracteres</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 bg-muted/30 rounded-xl p-4 border">
+                <Checkbox
+                  id="terms"
+                  checked={aceitouTermos}
+                  onCheckedChange={(checked) =>
+                    setAceitouTermos(checked as boolean)
+                  }
+                  className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-sm text-foreground leading-relaxed cursor-pointer"
+                >
+                  Concordo com os{" "}
+                  <Link
+                    to="/termos"
+                    className="text-primary hover:underline font-medium"
+                  >
+                    termos de uso
+                  </Link>{" "}
+                  e{" "}
+                  <Link
+                    to="/privacidade"
+                    className="text-primary hover:underline font-medium"
+                  >
+                    política de privacidade
+                  </Link>
+                </label>
+              </div>
+
+              <Button
+                className="w-full rounded-xl py-3 text-base font-medium shadow-lg hover:shadow-xl transition-all bg-primary hover:bg-primary/90"
+                size="lg"
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                    Criando conta...
+                  </div>
+                ) : (
+                  "Criar Minha Conta"
+                )}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Já tem uma conta?
+                </span>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <Button
+                variant="outline"
+                className="w-full rounded-xl border-2 hover:border-primary/50"
+                asChild
+              >
+                <Link to="/login" className="flex items-center gap-2">
+                  Fazer Login
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

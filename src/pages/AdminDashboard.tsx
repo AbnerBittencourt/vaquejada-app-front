@@ -1,231 +1,537 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { listEvents } from "@/lib/services/event.service";
+import { GetUserResponse, ListSubscriptionResponse } from "@/types/api";
+import { ListEventResponse } from "@/types/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Calendar, Users, DollarSign, Settings, LogOut, BarChart3, CheckCircle, User, Search, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Shield,
+  Calendar,
+  Users,
+  DollarSign,
+  BarChart3,
+  Search,
+  Filter,
+  Building2,
+  Eye,
+  Download,
+  Loader2,
+  LogOut,
+  User,
+  ArrowRight,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { CriarEventoModal } from "@/components/CriarEventoModal";
 import { DetalhesInscricaoModal } from "@/components/DetalhesInscricaoModal";
+import { listSubscriptions } from "@/lib/services/subscription.service";
+import {
+  SubscriptionStatusEnum,
+  EventStatusEnum,
+  CategoryNameEnum,
+} from "@/types/enums/api-enums";
+import { formatDate, formatPrice } from "@/utils/format-data.util";
+import { getMe } from "@/lib/services/user.service";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getCategoryNameMap,
+  getEventStatusMap,
+  getSubscriptionStatusMap,
+} from "@/types/enums/enum-maps";
 
 const AdminDashboard = () => {
-  const [inscricaoSelecionada, setInscricaoSelecionada] = useState<any>(null);
+  const [inscricaoSelecionada, setInscricaoSelecionada] =
+    useState<ListSubscriptionResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  
+
   // Filtros
   const [filtroEvento, setFiltroEvento] = useState<string>("todos");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todos");
-  const [filtroCheckin, setFiltroCheckin] = useState<string>("todos");
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [buscaNome, setBuscaNome] = useState<string>("");
 
-  const mockInscricoes = [
-    { 
-      corredor: "João Silva", 
-      cpf: "123.456.789-00",
-      telefone: "(87) 98888-7777",
-      email: "joao@email.com",
-      evento: "Vaquejada Santa Cruz", 
-      categoria: "Amador", 
-      haras: "Haras Vale Verde",
-      cavalo: "Relâmpago",
-      registroCavalo: "ABC-12345",
-      data: "Hoje, 14:30",
-      valor: "R$ 150,00",
-      status: "Confirmado",
-      checkin: false
-    },
-    { 
-      corredor: "Maria Santos", 
-      cpf: "987.654.321-00",
-      telefone: "(87) 99999-8888",
-      email: "maria@email.com",
-      evento: "Vaquejada Santa Cruz", 
-      categoria: "Profissional", 
-      haras: "Haras Campeão",
-      cavalo: "Trovão",
-      registroCavalo: "ABC-67890",
-      data: "Hoje, 13:15",
-      valor: "R$ 200,00",
-      status: "Confirmado",
-      checkin: true
-    },
-    { 
-      corredor: "Pedro Costa", 
-      cpf: "456.789.123-00",
-      telefone: "(87) 97777-6666",
-      email: "pedro@email.com",
-      evento: "Rodeio de Verão", 
-      categoria: "Aspirante", 
-      haras: "Haras Estrela",
-      cavalo: "Furacão",
-      registroCavalo: "ABC-11111",
-      data: "Ontem, 18:45",
-      valor: "R$ 120,00",
-      status: "Confirmado",
-      checkin: false
-    }
-  ];
+  // Eventos do organizador vindos da API
+  const [eventos, setEventos] = useState<ListEventResponse[]>([]);
+  const [loadingEventos, setLoadingEventos] = useState(true);
 
-  const handleVerDetalhes = (inscricao: any) => {
+  // Inscrições vindas da API
+  const [inscricoes, setInscricoes] = useState<ListSubscriptionResponse[]>([]);
+  const [loadingInscricoes, setLoadingInscricoes] = useState(true);
+
+  const [usuario, setUsuario] = useState<GetUserResponse | null>(null);
+  const [loadingUsuario, setLoadingUsuario] = useState(true);
+
+  // Estatísticas calculadas
+  const [stats, setStats] = useState({
+    totalEventos: 0,
+    totalInscricoes: 0,
+    receitaTotal: 0,
+    checkinsHoje: 0,
+  });
+
+  const { user, logout } = useAuth();
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    calcularEstatisticas();
+  }, [eventos, inscricoes]);
+
+  const fetchData = async () => {
+    await Promise.all([fetchUsuario(), fetchEventos(), fetchInscricoes()]);
+  };
+
+  const fetchUsuario = async () => {
+    try {
+      setLoadingUsuario(true);
+      const token = localStorage.getItem("token");
+
+      const response = await getMe(token);
+      const data = await response.json();
+      setUsuario(data);
+    } catch (err) {
+      console.error("Erro ao carregar usuário:", err);
+      setUsuario(null);
+    } finally {
+      setLoadingUsuario(false);
+    }
+  };
+
+  const fetchEventos = async () => {
+    try {
+      setLoadingEventos(true);
+      const response = await listEvents();
+      setEventos(response.data ?? []);
+    } catch (err) {
+      console.error("Erro ao carregar eventos:", err);
+      setEventos([]);
+    } finally {
+      setLoadingEventos(false);
+    }
+  };
+
+  const fetchInscricoes = async () => {
+    try {
+      setLoadingInscricoes(true);
+      const response = await listSubscriptions();
+      setInscricoes(response ?? []);
+    } catch (err) {
+      console.error("Erro ao carregar inscrições:", err);
+      setInscricoes([]);
+    } finally {
+      setLoadingInscricoes(false);
+    }
+  };
+
+  const calcularEstatisticas = () => {
+    const totalEventos = eventos.length;
+
+    const totalInscricoes = inscricoes.length;
+
+    const receitaTotal = inscricoes.reduce((total, inscricao) => {
+      return total + (Number(inscricao.passwordPrice) || 0);
+    }, 0);
+
+    const hoje = new Date().toDateString();
+    const checkinsHoje = inscricoes.filter((inscricao) => {
+      const dataInscricao = new Date(inscricao.subscribedAt).toDateString();
+      return (
+        dataInscricao === hoje &&
+        inscricao.status === SubscriptionStatusEnum.CONFIRMED
+      );
+    }).length;
+
+    setStats({
+      totalEventos,
+      totalInscricoes,
+      receitaTotal,
+      checkinsHoje,
+    });
+  };
+
+  const handleVerDetalhes = (inscricao: ListSubscriptionResponse) => {
     setInscricaoSelecionada(inscricao);
     setModalOpen(true);
   };
 
-  // Função para filtrar inscrições
-  const inscricoesFiltradas = mockInscricoes.filter((inscricao) => {
-    const matchEvento = filtroEvento === "todos" || inscricao.evento === filtroEvento;
-    const matchCategoria = filtroCategoria === "todos" || inscricao.categoria === filtroCategoria;
-    const matchCheckin = filtroCheckin === "todos" || 
-      (filtroCheckin === "feito" && inscricao.checkin) ||
-      (filtroCheckin === "pendente" && !inscricao.checkin);
-    const matchNome = buscaNome === "" || 
-      inscricao.corredor.toLowerCase().includes(buscaNome.toLowerCase());
-    
-    return matchEvento && matchCategoria && matchCheckin && matchNome;
+  // Função para filtrar inscrições vindas da API
+  const inscricoesFiltradas = inscricoes.filter((inscricao) => {
+    const matchEvento =
+      filtroEvento === "todos" ||
+      (inscricao.event?.id && inscricao.event.id.toString() === filtroEvento);
+
+    const matchCategoria =
+      filtroCategoria === "todos" ||
+      inscricao.category?.name === filtroCategoria;
+
+    const matchStatus =
+      filtroStatus === "todos" || inscricao.status === filtroStatus;
+
+    const matchNome =
+      buscaNome === "" ||
+      (inscricao.runner?.name &&
+        inscricao.runner.name.toLowerCase().includes(buscaNome.toLowerCase()));
+
+    return matchEvento && matchCategoria && matchStatus && matchNome;
   });
 
+  // Obter categorias únicas para filtro
+  const categoriasUnicas = [
+    ...new Set(inscricoes.map((insc) => insc.category?.name).filter(Boolean)),
+  ];
+
+  // Mapeia para [{valor, label}] traduzido
+  const categoriasFiltradas = categoriasUnicas.map((cat) => ({
+    valor: cat,
+    label: getCategoryNameMap(cat),
+  }));
+
+  // Obter eventos únicos para filtro
+  const eventosUnicos = [
+    ...new Set(inscricoes.map((insc) => insc.event?.id).filter(Boolean)),
+  ];
+
+  // Calcular financeiro por evento
+  const financeiroPorEvento = eventos.map((evento) => {
+    const inscricoesEvento = inscricoes.filter(
+      (insc) => insc.event?.id.toString() === evento.id?.toString()
+    );
+
+    const receitaBruta = inscricoesEvento.reduce(
+      (total, insc) => total + (Number(insc.passwordPrice) || 0),
+      0
+    );
+
+    return {
+      id: evento.id,
+      nome: evento.name,
+      data: new Date(evento.startAt).toLocaleDateString("pt-BR"),
+      inscricoes: inscricoesEvento.length,
+      receitaBruta,
+      status: evento.status,
+    };
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case SubscriptionStatusEnum.CONFIRMED:
+        return "bg-green-500";
+      case SubscriptionStatusEnum.PENDING:
+        return "bg-yellow-500";
+      case SubscriptionStatusEnum.CANCELLED:
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const getEventStatusColor = (status: EventStatusEnum) => {
+    switch (status) {
+      case EventStatusEnum.SCHEDULED:
+        return "bg-green-500";
+      case EventStatusEnum.LIVE:
+        return "bg-yellow-500";
+      case EventStatusEnum.CANCELLED:
+        return "bg-red-500";
+      case EventStatusEnum.FINISHED:
+        return "bg-gray-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-primary/5">
       {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
+      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50 supports-backdrop-blur:bg-card/60">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm"></div>
+              <Shield className="h-8 w-8 text-primary relative z-10" />
+            </div>
             <div>
-              <h1 className="text-xl font-bold">Painel do Organizador</h1>
-              <p className="text-xs text-muted-foreground">Parque Santa Cruz</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                Painel do Organizador
+              </h1>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Building2 className="h-4 w-4" />
+                {loadingUsuario
+                  ? "Carregando..."
+                  : user?.name || usuario?.name || "Organizador"}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/admin/perfil">
-                <User className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/admin/configuracoes">
-                <Settings className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link to="/" className="gap-2">
-                <LogOut className="h-5 w-5" />
-                Sair
-              </Link>
-            </Button>
+          <div className="flex items-center gap-2 relative group">
+            <div className="relative group">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-xl flex items-center gap-2 px-3 py-2 hover:bg-primary/10 border border-transparent hover:border-primary/20"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <span className="font-medium max-w-[120px] truncate hidden sm:block">
+                    {user?.name || usuario?.name}
+                  </span>
+                </div>
+              </Button>
+              <div className="absolute right-0 top-full mt-2 min-w-[200px] bg-card/95 backdrop-blur-md border rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                <div className="p-2">
+                  <div className="px-3 py-2 border-b border-border/50 mb-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {user?.name || usuario?.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.email || usuario?.email}
+                    </p>
+                  </div>
+                  <Link
+                    to="/admin/perfil"
+                    className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-all duration-200 group/item"
+                  >
+                    <User className="h-4 w-4 text-primary" />
+                    <span>Meu Perfil</span>
+                    <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                  </Link>
+                  <button
+                    onClick={logout}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200 group/item"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sair</span>
+                    <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Eventos Ativos</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-medium">
+                Eventos Ativos
+              </CardTitle>
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">+1 desde o mês passado</p>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.totalEventos}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total de eventos cadastrados
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+          <Card className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-medium">
+                Total de Inscrições
+              </CardTitle>
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">247</div>
-              <p className="text-xs text-muted-foreground">+42 esta semana</p>
+              <div className="text-2xl font-bold text-foreground">
+                {stats.totalInscricoes}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Inscrições em todos os eventos
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-medium">
+                Receita Total
+              </CardTitle>
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ 45.890</div>
-              <p className="text-xs text-muted-foreground">+12% desde o mês passado</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Check-ins Hoje</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">89</div>
-              <p className="text-xs text-muted-foreground">68% dos inscritos</p>
+              <div className="text-2xl font-bold text-foreground">
+                {formatPrice(stats.receitaTotal)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Receita bruta acumulada
+              </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Content */}
         <Tabs defaultValue="eventos" className="w-full">
-          <TabsList>
-            <TabsTrigger value="eventos">Eventos</TabsTrigger>
-            <TabsTrigger value="inscricoes">Inscrições</TabsTrigger>
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="checkin">Check-in</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/50 p-1">
+            <TabsTrigger
+              value="eventos"
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Eventos
+            </TabsTrigger>
+            <TabsTrigger
+              value="inscricoes"
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Inscrições
+            </TabsTrigger>
+            <TabsTrigger
+              value="financeiro"
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Financeiro
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="eventos" className="mt-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Meus Eventos</h2>
-              <CriarEventoModal />
+          <TabsContent value="eventos" className="mt-6 space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  Meus Eventos
+                </h2>
+                <p className="text-muted-foreground">
+                  Gerencie todos os eventos do seu parque
+                </p>
+              </div>
+              <CriarEventoModal onEventCreated={fetchEventos} />
             </div>
-            <div className="space-y-4">
-              {[
-                { nome: "Vaquejada do Parque Santa Cruz", data: "15/04/2025", inscricoes: 123, status: "Ativo" },
-                { nome: "Rodeio de Verão 2025", data: "20/05/2025", inscricoes: 89, status: "Ativo" },
-                { nome: "Vaquejada de São João", data: "24/06/2025", inscricoes: 35, status: "Inscrições abertas" }
-              ].map((evento) => (
-                <Card key={evento.nome}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{evento.nome}</CardTitle>
-                        <CardDescription>{evento.data}</CardDescription>
+
+            <div className="grid gap-4">
+              {loadingEventos ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Carregando eventos...</p>
+                </div>
+              ) : eventos.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">
+                    Nenhum evento encontrado
+                  </p>
+                  <p className="text-sm">
+                    Crie seu primeiro evento para começar
+                  </p>
+                </div>
+              ) : (
+                eventos.map((evento) => (
+                  <Card
+                    key={evento.id}
+                    className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all"
+                  >
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 bg-gradient-vaquejada rounded-xl flex items-center justify-center">
+                            <Calendar className="h-6 w-6 text-primary-foreground" />
+                          </div>
+                          <div className="flex-1">
+                            <CardTitle className="text-xl">
+                              {evento.name}
+                            </CardTitle>
+                            <CardDescription className="flex items-center gap-2 mt-1">
+                              <Calendar className="h-4 w-4" />
+                              {formatDate(evento.startAt)}
+                              {evento.endAt && (
+                                <>
+                                  <span>até</span>
+                                  {formatDate(evento.endAt)}
+                                </>
+                              )}
+                            </CardDescription>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                              <span>
+                                {evento.address}, {evento.city} - {evento.state}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="flex items-center gap-2 justify-end">
+                              <div
+                                className={`w-2 h-2 rounded-full ${getEventStatusColor(
+                                  evento.status
+                                )}`}
+                              ></div>
+                              <span className="text-sm font-medium">
+                                {getEventStatusMap(evento.status)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {
+                                inscricoes.filter(
+                                  (insc) =>
+                                    insc.event?.id.toString() ===
+                                    evento.id?.toString()
+                                ).length
+                              }{" "}
+                              inscrições
+                            </p>
+                          </div>
+                          <Button className="rounded-xl bg-primary hover:bg-primary/90">
+                            Gerenciar
+                          </Button>
+                        </div>
                       </div>
-                      <Button variant="outline">Gerenciar</Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Inscrições:</span>
-                        <p className="font-medium">{evento.inscricoes}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <p className="font-medium">{evento.status}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="inscricoes" className="mt-6">
-            <Card>
+            <Card className="bg-card/80 backdrop-blur-sm border-2">
               <CardHeader>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <CardTitle>Inscrições</CardTitle>
-                    <CardDescription>
-                      {inscricoesFiltradas.length} {inscricoesFiltradas.length === 1 ? 'inscrição encontrada' : 'inscrições encontradas'}
+                    <CardTitle className="text-2xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      Inscrições
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      {inscricoesFiltradas.length}{" "}
+                      {inscricoesFiltradas.length === 1
+                        ? "inscrição encontrada"
+                        : "inscrições encontradas"}
                     </CardDescription>
                   </div>
-                  <Filter className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Filter className="h-5 w-5" />
+                    <span className="text-sm">Filtros</span>
+                  </div>
                 </div>
-                
+
                 {/* Filtros */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div className="relative">
@@ -234,65 +540,134 @@ const AdminDashboard = () => {
                       placeholder="Buscar por nome..."
                       value={buscaNome}
                       onChange={(e) => setBuscaNome(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 rounded-xl border-2 focus:border-primary/50 bg-background/50"
                     />
                   </div>
-                  
+
                   <Select value={filtroEvento} onValueChange={setFiltroEvento}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
                       <SelectValue placeholder="Todos os eventos" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todos os eventos</SelectItem>
-                      <SelectItem value="Vaquejada Santa Cruz">Vaquejada Santa Cruz</SelectItem>
-                      <SelectItem value="Rodeio de Verão">Rodeio de Verão</SelectItem>
+                      {eventosUnicos.map((eventoId) => {
+                        const evento = eventos.find(
+                          (e) => e.id?.toString() === eventoId
+                        );
+                        return (
+                          <SelectItem key={eventoId} value={eventoId}>
+                            {evento?.name || `Evento ${eventoId}`}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
 
-                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                    <SelectTrigger>
+                  <Select
+                    value={filtroCategoria}
+                    onValueChange={setFiltroCategoria}
+                  >
+                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
                       <SelectValue placeholder="Todas as categorias" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todas as categorias</SelectItem>
-                      <SelectItem value="Amador">Amador</SelectItem>
-                      <SelectItem value="Profissional">Profissional</SelectItem>
-                      <SelectItem value="Aspirante">Aspirante</SelectItem>
+                      {categoriasFiltradas.map((categoria) => (
+                        <SelectItem
+                          key={categoria.valor}
+                          value={categoria.valor}
+                        >
+                          {categoria.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
-                  <Select value={filtroCheckin} onValueChange={setFiltroCheckin}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status check-in" />
+                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
+                      <SelectValue placeholder="Todos os status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="feito">Check-in feito</SelectItem>
-                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="todos">Todos os status</SelectItem>
+                      <SelectItem value={SubscriptionStatusEnum.CONFIRMED}>
+                        Confirmado
+                      </SelectItem>
+                      <SelectItem value={SubscriptionStatusEnum.PENDING}>
+                        Pendente
+                      </SelectItem>
+                      <SelectItem value={SubscriptionStatusEnum.CANCELLED}>
+                        Cancelado
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {inscricoesFiltradas.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      Nenhuma inscrição encontrada com os filtros selecionados
+                  {loadingInscricoes ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                      <p className="text-lg font-medium">
+                        Carregando inscrições...
+                      </p>
+                    </div>
+                  ) : inscricoesFiltradas.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">
+                        Nenhuma inscrição encontrada
+                      </p>
+                      <p className="text-sm">
+                        Tente ajustar os filtros de busca
+                      </p>
                     </div>
                   ) : (
-                    inscricoesFiltradas.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
-                      <div>
-                        <p className="font-medium">{item.corredor}</p>
-                        <p className="text-sm text-muted-foreground">{item.evento} - {item.categoria}</p>
-                        <p className="text-xs text-muted-foreground">{item.haras}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">{item.data}</p>
-                        <Button variant="ghost" size="sm" onClick={() => handleVerDetalhes(item)}>
-                          Ver detalhes
-                        </Button>
-                      </div>
+                    inscricoesFiltradas.map((inscricao, index) => (
+                      <div
+                        key={inscricao.id || index}
+                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border hover:border-primary/30 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gradient-vaquejada rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                              {inscricao.runner?.name || "Nome não informado"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {inscricao.event?.name || "Evento não encontrado"}{" "}
+                              • {getCategoryNameMap(inscricao.category?.name)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 justify-end mb-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${getStatusColor(
+                                inscricao.status
+                              )}`}
+                            ></div>
+                            <span className="text-sm text-muted-foreground">
+                              {getSubscriptionStatusMap(inscricao.status)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(inscricao.subscribedAt)}
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatPrice(Number(inscricao.passwordPrice) || 0)}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVerDetalhes(inscricao)}
+                            className="mt-2 rounded-xl hover:bg-primary/10"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver detalhes
+                          </Button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -301,97 +676,102 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="financeiro" className="mt-6">
+          <TabsContent value="financeiro" className="mt-6 space-y-6">
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
+                Financeiro
+              </h2>
+              <p className="text-muted-foreground">
+                Acompanhe a saúde financeira do seu parque
+              </p>
+            </div>
+
             <div className="grid gap-6">
-              <Card>
+              <Card className="bg-card/80 backdrop-blur-sm border-2">
                 <CardHeader>
-                  <CardTitle>Resumo Financeiro Geral</CardTitle>
-                  <CardDescription>Últimos 30 dias - Todos os eventos</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Resumo Financeiro Geral
+                  </CardTitle>
+                  <CardDescription>
+                    Todos os eventos - Dados em tempo real
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Receita bruta</span>
-                      <span className="text-2xl font-bold">R$ 45.890,00</span>
+                    <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
+                      <span className="text-muted-foreground">
+                        Receita bruta
+                      </span>
+                      <span className="text-2xl font-bold text-foreground">
+                        {formatPrice(stats.receitaTotal)}
+                      </span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Taxas de pagamento</span>
-                      <span className="text-lg">- R$ 2.294,50</span>
-                    </div>
-                    <div className="border-t pt-4 flex justify-between items-center">
+                    <div className="flex justify-between items-center p-4 bg-gradient-vaquejada rounded-lg text-primary-foreground">
                       <span className="font-medium">Receita líquida</span>
-                      <span className="text-2xl font-bold text-primary">R$ 43.595,50</span>
+                      <span className="text-2xl font-bold">
+                        {formatPrice(stats.receitaTotal)}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-card/80 backdrop-blur-sm border-2">
                 <CardHeader>
-                  <CardTitle>Financeiro por Evento</CardTitle>
-                  <CardDescription>Detalhamento de receita por evento</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Financeiro por Evento
+                  </CardTitle>
+                  <CardDescription>
+                    Detalhamento de receita por evento
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {[
-                      { 
-                        nome: "Vaquejada do Parque Santa Cruz", 
-                        data: "15/04/2025", 
-                        inscricoes: 123,
-                        receitaBruta: "R$ 18.450,00",
-                        taxas: "R$ 922,50",
-                        receitaLiquida: "R$ 17.527,50",
-                        status: "Confirmado"
-                      },
-                      { 
-                        nome: "Rodeio de Verão 2025", 
-                        data: "20/05/2025", 
-                        inscricoes: 89,
-                        receitaBruta: "R$ 17.800,00",
-                        taxas: "R$ 890,00",
-                        receitaLiquida: "R$ 16.910,00",
-                        status: "Confirmado"
-                      },
-                      { 
-                        nome: "Vaquejada de São João", 
-                        data: "24/06/2025", 
-                        inscricoes: 35,
-                        receitaBruta: "R$ 5.250,00",
-                        taxas: "R$ 262,50",
-                        receitaLiquida: "R$ 4.987,50",
-                        status: "Em andamento"
-                      }
-                    ].map((evento, i) => (
-                      <Card key={i} className="border-2">
+                    {financeiroPorEvento.map((evento, i) => (
+                      <Card
+                        key={evento.id || i}
+                        className="border-2 bg-muted/20 hover:border-primary/30 transition-all"
+                      >
                         <CardHeader>
                           <div className="flex items-start justify-between">
                             <div>
-                              <CardTitle className="text-lg">{evento.nome}</CardTitle>
-                              <CardDescription>{evento.data} • {evento.inscricoes} inscrições</CardDescription>
+                              <CardTitle className="text-lg">
+                                {evento.nome}
+                              </CardTitle>
+                              <CardDescription>
+                                {evento.data} • {evento.inscricoes} inscrições
+                              </CardDescription>
                             </div>
                           </div>
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Receita bruta</span>
-                              <p className="font-bold text-lg">{evento.receitaBruta}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Taxas</span>
-                              <p className="font-medium">-{evento.taxas}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Receita líquida</span>
-                              <p className="font-bold text-lg text-primary">{evento.receitaLiquida}</p>
+                            <div className="text-center p-3 bg-background/50 rounded-lg">
+                              <span className="text-muted-foreground">
+                                Receita bruta
+                              </span>
+                              <p className="font-bold text-lg text-foreground">
+                                {formatPrice(evento.receitaBruta)}
+                              </p>
                             </div>
                           </div>
                           <div className="mt-4 flex gap-2">
-                            <Button variant="outline" size="sm" className="flex-1">
-                              <BarChart3 className="h-4 w-4 mr-2" />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 rounded-xl"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
                               Exportar CSV
                             </Button>
-                            <Button variant="outline" size="sm" className="flex-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 rounded-xl"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
                               Ver detalhes
                             </Button>
                           </div>
@@ -401,69 +781,12 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Relatórios Gerais</CardTitle>
-                    <CardDescription>Exporte dados consolidados</CardDescription>
-                  </div>
-                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start">
-                    Exportar todas as vendas (CSV)
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    Relatório completo (PDF)
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="checkin" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Painel de Check-in</CardTitle>
-                    <CardDescription>Status em tempo real</CardDescription>
-                  </div>
-                  <Button>Abrir scanner QR</Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {[
-                    { categoria: "Amador", total: 50, checkin: 38 },
-                    { categoria: "Profissional", total: 40, checkin: 28 },
-                    { categoria: "Aspirante", total: 50, checkin: 18 },
-                    { categoria: "Mirim", total: 30, checkin: 5 }
-                  ].map((cat) => (
-                    <div key={cat.categoria}>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-medium">{cat.categoria}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {cat.checkin}/{cat.total} ({Math.round((cat.checkin/cat.total)*100)}%)
-                        </span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${(cat.checkin/cat.total)*100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
 
-      <DetalhesInscricaoModal 
+      <DetalhesInscricaoModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         inscricao={inscricaoSelecionada}
