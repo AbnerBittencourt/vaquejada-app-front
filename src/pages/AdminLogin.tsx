@@ -29,7 +29,6 @@ const AdminLogin = () => {
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user, logout, isAuthenticated } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +71,7 @@ const AdminLogin = () => {
               <Shield className="h-10 w-10 text-primary relative z-10" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Vaquei Fácil
+              Trilha do Vaqueiro
             </h1>
           </div>
 
@@ -84,7 +83,7 @@ const AdminLogin = () => {
         <Card className="bg-card/80 backdrop-blur-sm border-2 shadow-2xl">
           <CardHeader className="space-y-4 pb-6">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-vaquejada mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500 mb-4">
                 <Shield className="h-8 w-8 text-primary-foreground" />
               </div>
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">

@@ -1,3 +1,6 @@
+import { UsuariosTab } from "@/components/admin/UsuariosTab";
+import { EventosTab } from "@/components/admin/EventosTab";
+import { InscricoesTab } from "@/components/admin/InscricoesTab";
 import { useState, useEffect } from "react";
 import { listEvents } from "@/lib/services/event.service";
 import { GetUserResponse, ListSubscriptionResponse } from "@/types/api";
@@ -11,71 +14,75 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Shield,
   Calendar,
   Users,
   DollarSign,
   BarChart3,
-  Search,
-  Filter,
   Building2,
   Eye,
   Download,
-  Loader2,
   LogOut,
   User,
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { CriarEventoModal } from "@/components/CriarEventoModal";
 import { DetalhesInscricaoModal } from "@/components/DetalhesInscricaoModal";
 import { listSubscriptions } from "@/lib/services/subscription.service";
 import {
   SubscriptionStatusEnum,
   EventStatusEnum,
-  CategoryNameEnum,
 } from "@/types/enums/api-enums";
-import { formatDate, formatPrice } from "@/utils/format-data.util";
+import { formatPrice } from "@/utils/format-data.util";
 import { getMe } from "@/lib/services/user.service";
+import { listUsers } from "@/lib/services/user.service";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  getCategoryNameMap,
-  getEventStatusMap,
-  getSubscriptionStatusMap,
-} from "@/types/enums/enum-maps";
+import { getCategoryNameMap } from "@/types/enums/enum-maps";
+import { CriarEventoModal } from "@/components/CriarEventoModal";
 
 const AdminDashboard = () => {
+  // Estados base
+  const [usuarios, setUsuarios] = useState<GetUserResponse[]>([]);
+  const [eventos, setEventos] = useState<ListEventResponse[]>([]);
+  const [inscricoes, setInscricoes] = useState<ListSubscriptionResponse[]>([]);
+  const [usuario, setUsuario] = useState<GetUserResponse | null>(null);
+
+  // Estados de loading
+  const [loadingUsuarios, setLoadingUsuarios] = useState(true);
+  const [loadingEventos, setLoadingEventos] = useState(true);
+  const [loadingInscricoes, setLoadingInscricoes] = useState(true);
+  const [loadingUsuario, setLoadingUsuario] = useState(true);
+
+  // Estados para modais
   const [inscricaoSelecionada, setInscricaoSelecionada] =
     useState<ListSubscriptionResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Filtros
+  // FILTROS USUÁRIOS - ATUALIZADO COM ROLE
+  const [usuariosFiltro, setUsuariosFiltro] = useState("");
+  const [usuariosFiltroRole, setUsuariosFiltroRole] = useState<string>("todos");
+  const [usuariosPage, setUsuariosPage] = useState(1);
+  const usuariosPerPage = 10;
+
+  // FILTROS EVENTOS - ATUALIZADO COM STATUS, CIDADE, ESTADO
+  const [eventosFiltro, setEventosFiltro] = useState("");
+  const [eventosFiltroStatus, setEventosFiltroStatus] =
+    useState<string>("todos");
+  const [eventosFiltroCidade, setEventosFiltroCidade] =
+    useState<string>("todos");
+  const [eventosFiltroEstado, setEventosFiltroEstado] =
+    useState<string>("todos");
+  const [eventosPage, setEventosPage] = useState(1);
+  const eventosPerPage = 10;
+
+  // Filtros inscrições
   const [filtroEvento, setFiltroEvento] = useState<string>("todos");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [buscaNome, setBuscaNome] = useState<string>("");
 
-  // Eventos do organizador vindos da API
-  const [eventos, setEventos] = useState<ListEventResponse[]>([]);
-  const [loadingEventos, setLoadingEventos] = useState(true);
-
-  // Inscrições vindas da API
-  const [inscricoes, setInscricoes] = useState<ListSubscriptionResponse[]>([]);
-  const [loadingInscricoes, setLoadingInscricoes] = useState(true);
-
-  const [usuario, setUsuario] = useState<GetUserResponse | null>(null);
-  const [loadingUsuario, setLoadingUsuario] = useState(true);
-
-  // Estatísticas calculadas
+  // Estatísticas
   const [stats, setStats] = useState({
     totalEventos: 0,
     totalInscricoes: 0,
@@ -85,23 +92,58 @@ const AdminDashboard = () => {
 
   const { user, logout } = useAuth();
 
+  // Efeitos para resetar paginação quando filtros mudam - ATUALIZADOS
+  useEffect(() => {
+    setUsuariosPage(1);
+  }, [usuariosFiltro, usuariosFiltroRole]);
+
+  useEffect(() => {
+    setEventosPage(1);
+  }, [
+    eventosFiltro,
+    eventosFiltroStatus,
+    eventosFiltroCidade,
+    eventosFiltroEstado,
+  ]);
+
+  // Carregar dados iniciais
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Calcular estatísticas quando eventos ou inscrições mudam
   useEffect(() => {
     calcularEstatisticas();
   }, [eventos, inscricoes]);
 
   const fetchData = async () => {
-    await Promise.all([fetchUsuario(), fetchEventos(), fetchInscricoes()]);
+    await Promise.all([
+      fetchUsuario(),
+      fetchEventos(),
+      fetchInscricoes(),
+      fetchUsuarios(),
+    ]);
+  };
+
+  const fetchUsuarios = async () => {
+    try {
+      setLoadingUsuarios(true);
+      const token = localStorage.getItem("token");
+      const response = await listUsers(token || "");
+      const data = await response.json();
+      setUsuarios(data ?? []);
+    } catch (err) {
+      console.error("Erro ao carregar usuários:", err);
+      setUsuarios([]);
+    } finally {
+      setLoadingUsuarios(false);
+    }
   };
 
   const fetchUsuario = async () => {
     try {
       setLoadingUsuario(true);
       const token = localStorage.getItem("token");
-
       const response = await getMe(token);
       const data = await response.json();
       setUsuario(data);
@@ -141,7 +183,6 @@ const AdminDashboard = () => {
 
   const calcularEstatisticas = () => {
     const totalEventos = eventos.length;
-
     const totalInscricoes = inscricoes.length;
 
     const receitaTotal = inscricoes.reduce((total, inscricao) => {
@@ -165,12 +206,68 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleVerDetalhes = (inscricao: ListSubscriptionResponse) => {
-    setInscricaoSelecionada(inscricao);
-    setModalOpen(true);
-  };
+  // FILTROS USUÁRIOS - ATUALIZADO COM ROLE
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const matchNomeEmail =
+      u.name?.toLowerCase().includes(usuariosFiltro.toLowerCase()) ||
+      u.email?.toLowerCase().includes(usuariosFiltro.toLowerCase());
 
-  // Função para filtrar inscrições vindas da API
+    const matchRole =
+      usuariosFiltroRole === "todos" || u.role === usuariosFiltroRole;
+
+    return matchNomeEmail && matchRole;
+  });
+
+  const usuariosTotalPages = Math.max(
+    1,
+    Math.ceil(usuariosFiltrados.length / usuariosPerPage)
+  );
+
+  const usuariosPaginados = usuariosFiltrados.slice(
+    (usuariosPage - 1) * usuariosPerPage,
+    usuariosPage * usuariosPerPage
+  );
+
+  // Obter roles únicos para filtro
+  const rolesUnicos = [...new Set(usuarios.map((u) => u.role).filter(Boolean))];
+
+  // FILTROS EVENTOS - ATUALIZADO COM STATUS, CIDADE, ESTADO
+  const eventosFiltrados = eventos.filter((e) => {
+    const matchNome = e.name
+      ?.toLowerCase()
+      .includes(eventosFiltro.toLowerCase());
+    const matchStatus =
+      eventosFiltroStatus === "todos" || e.status === eventosFiltroStatus;
+    const matchCidade =
+      eventosFiltroCidade === "todos" || e.city === eventosFiltroCidade;
+    const matchEstado =
+      eventosFiltroEstado === "todos" || e.state === eventosFiltroEstado;
+
+    return matchNome && matchStatus && matchCidade && matchEstado;
+  });
+
+  const eventosTotalPages = Math.max(
+    1,
+    Math.ceil(eventosFiltrados.length / eventosPerPage)
+  );
+
+  const eventosPaginados = eventosFiltrados.slice(
+    (eventosPage - 1) * eventosPerPage,
+    eventosPage * eventosPerPage
+  );
+
+  // Obter cidades, estados e status únicos para filtros
+  const cidadesUnicas = [
+    ...new Set(eventos.map((e) => e.city).filter(Boolean)),
+  ];
+  const estadosUnicos = [
+    ...new Set(eventos.map((e) => e.state).filter(Boolean)),
+  ];
+  const statusUnicos = [
+    ...new Set(eventos.map((e) => e.status).filter(Boolean)),
+  ];
+
+  // Filtros para inscrições
   const inscricoesFiltradas = inscricoes.filter((inscricao) => {
     const matchEvento =
       filtroEvento === "todos" ||
@@ -191,20 +288,14 @@ const AdminDashboard = () => {
     return matchEvento && matchCategoria && matchStatus && matchNome;
   });
 
+  const handleVerDetalhes = (inscricao: ListSubscriptionResponse) => {
+    setInscricaoSelecionada(inscricao);
+    setModalOpen(true);
+  };
+
   // Obter categorias únicas para filtro
   const categoriasUnicas = [
     ...new Set(inscricoes.map((insc) => insc.category?.name).filter(Boolean)),
-  ];
-
-  // Mapeia para [{valor, label}] traduzido
-  const categoriasFiltradas = categoriasUnicas.map((cat) => ({
-    valor: cat,
-    label: getCategoryNameMap(cat),
-  }));
-
-  // Obter eventos únicos para filtro
-  const eventosUnicos = [
-    ...new Set(inscricoes.map((insc) => insc.event?.id).filter(Boolean)),
   ];
 
   // Calcular financeiro por evento
@@ -227,19 +318,6 @@ const AdminDashboard = () => {
       status: evento.status,
     };
   });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case SubscriptionStatusEnum.CONFIRMED:
-        return "bg-green-500";
-      case SubscriptionStatusEnum.PENDING:
-        return "bg-yellow-500";
-      case SubscriptionStatusEnum.CANCELLED:
-        return "bg-red-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
 
   const getEventStatusColor = (status: EventStatusEnum) => {
     switch (status) {
@@ -390,7 +468,14 @@ const AdminDashboard = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="eventos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/50 p-1">
+          <TabsList className="grid w-full grid-cols-4 rounded-2xl bg-muted/50 p-1">
+            <TabsTrigger
+              value="usuarios"
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Usuários
+            </TabsTrigger>
             <TabsTrigger
               value="eventos"
               className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm"
@@ -414,266 +499,61 @@ const AdminDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="eventos" className="mt-6 space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Meus Eventos
-                </h2>
-                <p className="text-muted-foreground">
-                  Gerencie todos os eventos do seu parque
-                </p>
-              </div>
-              <CriarEventoModal onEventCreated={fetchEventos} />
-            </div>
+          <TabsContent value="usuarios" className="mt-6 space-y-6">
+            <UsuariosTab
+              usuarios={usuariosPaginados}
+              loading={loadingUsuarios}
+              page={usuariosPage}
+              totalPages={usuariosTotalPages}
+              onPageChange={setUsuariosPage}
+              filtro={usuariosFiltro}
+              onFiltroChange={setUsuariosFiltro}
+              filtroRole={usuariosFiltroRole}
+              onFiltroRoleChange={setUsuariosFiltroRole}
+              totalUsuarios={usuariosFiltrados.length}
+              rolesUnicos={rolesUnicos}
+              onRefreshUsuarios={fetchUsuarios}
+            />
+          </TabsContent>
 
-            <div className="grid gap-4">
-              {loadingEventos ? (
-                <div className="text-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Carregando eventos...</p>
-                </div>
-              ) : eventos.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">
-                    Nenhum evento encontrado
-                  </p>
-                  <p className="text-sm">
-                    Crie seu primeiro evento para começar
-                  </p>
-                </div>
-              ) : (
-                eventos.map((evento) => (
-                  <Card
-                    key={evento.id}
-                    className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all"
-                  >
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center">
-                            <Calendar className="h-6 w-6 text-primary-foreground" />
-                          </div>
-                          <div className="flex-1">
-                            <CardTitle className="text-xl">
-                              {evento.name}
-                            </CardTitle>
-                            <CardDescription className="flex items-center gap-2 mt-1">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(evento.startAt)}
-                              {evento.endAt && (
-                                <>
-                                  <span>até</span>
-                                  {formatDate(evento.endAt)}
-                                </>
-                              )}
-                            </CardDescription>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                              <span>
-                                {evento.address}, {evento.city} - {evento.state}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className="flex items-center gap-2 justify-end">
-                              <div
-                                className={`w-2 h-2 rounded-full ${getEventStatusColor(
-                                  evento.status
-                                )}`}
-                              ></div>
-                              <span className="text-sm font-medium">
-                                {getEventStatusMap(evento.status)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {
-                                inscricoes.filter(
-                                  (insc) =>
-                                    insc.event?.id.toString() ===
-                                    evento.id?.toString()
-                                ).length
-                              }{" "}
-                              inscrições
-                            </p>
-                          </div>
-                          <Button className="rounded-xl bg-primary hover:bg-primary/90">
-                            Gerenciar
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))
-              )}
-            </div>
+          <TabsContent value="eventos" className="mt-6 space-y-6">
+            <EventosTab
+              eventos={eventosPaginados}
+              loading={loadingEventos}
+              page={eventosPage}
+              totalPages={eventosTotalPages}
+              onPageChange={setEventosPage}
+              filtro={eventosFiltro}
+              onFiltroChange={setEventosFiltro}
+              filtroStatus={eventosFiltroStatus}
+              onFiltroStatusChange={setEventosFiltroStatus}
+              filtroCidade={eventosFiltroCidade}
+              onFiltroCidadeChange={setEventosFiltroCidade}
+              filtroEstado={eventosFiltroEstado}
+              onFiltroEstadoChange={setEventosFiltroEstado}
+              totalEventos={eventosFiltrados.length}
+              cidadesUnicas={cidadesUnicas}
+              estadosUnicos={estadosUnicos}
+              statusUnicos={statusUnicos}
+              onEventCreated={fetchEventos}
+            />
           </TabsContent>
 
           <TabsContent value="inscricoes" className="mt-6">
-            <Card className="bg-card/80 backdrop-blur-sm border-2">
-              <CardHeader>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <CardTitle className="text-2xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      Inscrições
-                    </CardTitle>
-                    <CardDescription className="text-base">
-                      {inscricoesFiltradas.length}{" "}
-                      {inscricoesFiltradas.length === 1
-                        ? "inscrição encontrada"
-                        : "inscrições encontradas"}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Filter className="h-5 w-5" />
-                    <span className="text-sm">Filtros</span>
-                  </div>
-                </div>
-
-                {/* Filtros */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nome..."
-                      value={buscaNome}
-                      onChange={(e) => setBuscaNome(e.target.value)}
-                      className="pl-10 rounded-xl border-2 focus:border-primary/50 bg-background/50"
-                    />
-                  </div>
-
-                  <Select value={filtroEvento} onValueChange={setFiltroEvento}>
-                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
-                      <SelectValue placeholder="Todos os eventos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os eventos</SelectItem>
-                      {eventosUnicos.map((eventoId) => {
-                        const evento = eventos.find(
-                          (e) => e.id?.toString() === eventoId
-                        );
-                        return (
-                          <SelectItem key={eventoId} value={eventoId}>
-                            {evento?.name || `Evento ${eventoId}`}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filtroCategoria}
-                    onValueChange={setFiltroCategoria}
-                  >
-                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
-                      <SelectValue placeholder="Todas as categorias" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas as categorias</SelectItem>
-                      {categoriasFiltradas.map((categoria) => (
-                        <SelectItem
-                          key={categoria.valor}
-                          value={categoria.valor}
-                        >
-                          {categoria.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                    <SelectTrigger className="rounded-xl border-2 focus:border-primary/50 bg-background/50">
-                      <SelectValue placeholder="Todos os status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os status</SelectItem>
-                      <SelectItem value={SubscriptionStatusEnum.CONFIRMED}>
-                        Confirmado
-                      </SelectItem>
-                      <SelectItem value={SubscriptionStatusEnum.PENDING}>
-                        Pendente
-                      </SelectItem>
-                      <SelectItem value={SubscriptionStatusEnum.CANCELLED}>
-                        Cancelado
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {loadingInscricoes ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                      <p className="text-lg font-medium">
-                        Carregando inscrições...
-                      </p>
-                    </div>
-                  ) : inscricoesFiltradas.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">
-                        Nenhuma inscrição encontrada
-                      </p>
-                      <p className="text-sm">
-                        Tente ajustar os filtros de busca
-                      </p>
-                    </div>
-                  ) : (
-                    inscricoesFiltradas.map((inscricao, index) => (
-                      <div
-                        key={inscricao.id || index}
-                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border hover:border-primary/30 transition-all group"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">
-                              {inscricao.runner?.name || "Nome não informado"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {inscricao.event?.name || "Evento não encontrado"}{" "}
-                              • {getCategoryNameMap(inscricao.category?.name)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-2 justify-end mb-2">
-                            <div
-                              className={`w-2 h-2 rounded-full ${getStatusColor(
-                                inscricao.status
-                              )}`}
-                            ></div>
-                            <span className="text-sm text-muted-foreground">
-                              {getSubscriptionStatusMap(inscricao.status)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(inscricao.subscribedAt)}
-                          </p>
-                          <p className="text-sm font-medium text-foreground">
-                            {formatPrice(Number(inscricao.passwordPrice) || 0)}
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleVerDetalhes(inscricao)}
-                            className="mt-2 rounded-xl hover:bg-[#AF6B00] hover:text-white transition-colors"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver detalhes
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <InscricoesTab
+              inscricoes={inscricoes}
+              loading={loadingInscricoes}
+              filtroEvento={filtroEvento}
+              filtroCategoria={filtroCategoria}
+              filtroStatus={filtroStatus}
+              buscaNome={buscaNome}
+              onFiltroEventoChange={setFiltroEvento}
+              onFiltroCategoriaChange={setFiltroCategoria}
+              onFiltroStatusChange={setFiltroStatus}
+              onBuscaNomeChange={setBuscaNome}
+              inscricoesFiltradas={inscricoesFiltradas}
+              onVerDetalhes={handleVerDetalhes}
+            />
           </TabsContent>
 
           <TabsContent value="financeiro" className="mt-6 space-y-6">
@@ -744,6 +624,11 @@ const AdminDashboard = () => {
                                 {evento.data} • {evento.inscricoes} inscrições
                               </CardDescription>
                             </div>
+                            <div
+                              className={`w-3 h-3 rounded-full ${getEventStatusColor(
+                                evento.status as EventStatusEnum
+                              )}`}
+                            ></div>
                           </div>
                         </CardHeader>
                         <CardContent>
