@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Não foi possível obter dados do usuário");
     }
     const userData: GetUserResponse = await userRes.json();
+    localStorage.setItem("userId", userData.id);
     setUser(userData);
 
     toast.success(`Bem-vindo, ${userData.name || userData.email}!`);
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Não foi possível obter dados do usuário");
     }
     const userData: GetUserResponse = await userRes.json();
+    localStorage.setItem("userId", userData.id);
     setUser(userData);
     toast.success("Conta criada com sucesso!");
     navigate("/");
