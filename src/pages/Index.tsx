@@ -61,7 +61,7 @@ const Index = () => {
               <Users className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Vaquei Fácil
+              Trilha do Vaqueiro
             </h1>
           </Link>
 
@@ -389,7 +389,7 @@ const Index = () => {
             <div className="flex items-center justify-center gap-2 mb-4">
               <Users className="h-6 w-6 text-primary" />
               <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Vaquei Fácil
+                Trilha do Vaqueiro
               </span>
             </div>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -397,7 +397,7 @@ const Index = () => {
               organizadores
             </p>
             <p className="text-sm text-muted-foreground">
-              © 2025 Vaquei Fácil. Todos os direitos reservados.
+              © 2025 Trilha do Vaqueiro. Todos os direitos reservados.
             </p>
           </div>
         </div>
