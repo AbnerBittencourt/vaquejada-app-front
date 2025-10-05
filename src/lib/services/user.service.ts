@@ -72,3 +72,15 @@ export const updateUser = async (
 
   return response.json();
 };
+
+export const getUserById = async (userId: string, token: string) => {
+  const response = await fetch(`${API_URL}/users/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar usuário");
+  }
+
+  return response.json();
+};
