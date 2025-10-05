@@ -42,3 +42,32 @@ export async function createEvent(eventData: {
   }
   return await response.json();
 }
+
+export async function getEventById(eventId: string) {
+  const response = await fetch(`${API_URL}/events/${eventId}`, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao obter evento");
+  }
+  return await response.json();
+}
+
+export async function getEventCategories(eventId: string, token: string) {
+  const response = await fetch(
+    `${API_URL}/event-categories?eventId=${eventId}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao obter categorias do evento");
+  }
+
+  return await response.json();
+}

@@ -1,3 +1,5 @@
+import { CreateFullUser } from "@/types/api";
+
 const API_URL = import.meta.env.API_URL || "http://localhost:3000";
 
 export async function getMe(token: string) {
@@ -25,3 +27,48 @@ export async function createUser(dados: {
     }),
   });
 }
+
+export async function listUsers(token: string) {
+  return fetch(`${API_URL}/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export const createFullUser = async (userData: CreateFullUser) => {
+  const token = localStorage.getItem("token");
+  const response = await fetch(`${API_URL}/users/full`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao criar usuário");
+  }
+
+  return response.json();
+};
+
+export const updateUser = async (
+  userId: string,
+  userData: Partial<CreateFullUser>,
+  token: string
+) => {
+  const response = await fetch(`${API_URL}/users/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao atualizar usuário");
+  }
+
+  return response.json();
+};
