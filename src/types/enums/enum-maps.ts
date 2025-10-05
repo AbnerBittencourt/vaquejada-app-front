@@ -1,7 +1,9 @@
 import {
+  UserRoleEnum,
   EventStatusEnum,
   CategoryNameEnum,
   SubscriptionStatusEnum,
+  UserNatureEnum,
 } from "./api-enums";
 
 const categoryNameMap: Record<CategoryNameEnum, string> = {
@@ -39,4 +41,27 @@ const subscriptionStatusMap: Record<SubscriptionStatusEnum, string> = {
 
 export const getSubscriptionStatusMap = (status: SubscriptionStatusEnum) => {
   return subscriptionStatusMap[status] ?? status;
+};
+
+const roleMap: Record<UserRoleEnum, string> = {
+  [UserRoleEnum.ADMIN]: "Administrador",
+  [UserRoleEnum.ORGANIZER]: "Organizador",
+  [UserRoleEnum.RUNNER]: "Corredor",
+  [UserRoleEnum.USER]: "Usuário",
+  [UserRoleEnum.JUDGE]: "Juiz",
+  [UserRoleEnum.SPEAKER]: "Locutor",
+};
+
+export const getRoleMap = (role: UserRoleEnum) => {
+  return roleMap[role] ?? role;
+};
+
+export const natureMap: Record<UserNatureEnum, string> = {
+  [UserNatureEnum.MALE]: "Masculino",
+  [UserNatureEnum.FEMALE]: "Feminino",
+  [UserNatureEnum.OTHER]: "Outro",
+};
+
+export const getNatureMap = (nature: UserNatureEnum) => {
+  return natureMap[nature] ?? nature;
 };

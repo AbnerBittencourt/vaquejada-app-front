@@ -16,6 +16,20 @@ export type CreateUserResponse = {
   access_token: string;
 };
 
+export type CreateFullUser = {
+  email: string;
+  name: string;
+  password: string;
+  cpf: string;
+  nature: UserNatureEnum;
+  phone: string;
+  role: UserRoleEnum;
+  city: string;
+  state: string;
+  isActive: boolean;
+  organizerId?: string;
+};
+
 export type GetUserResponse = {
   id: string;
   email: string;
@@ -43,6 +57,7 @@ export type EventResponse = {
   endAt: string;
   purchaseClosedAt: string;
   status: EventStatusEnum;
+  prize: string;
   address?: string;
   city?: string;
   state?: string;
@@ -52,6 +67,7 @@ export type EventResponse = {
   isPublic: boolean;
   organizerId: string;
   createdAt: string;
+  categories?: CategoryResponse[];
 };
 
 export type ListEventResponse = {
