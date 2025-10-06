@@ -73,7 +73,7 @@ const MeusIngressos = () => {
             </Button>
             <div className="flex items-center gap-2">
               <Users className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold">Trilha do Vaqueiro</h1>
+              <h1 className="text-2xl font-bold">Vaquejada APP</h1>
             </div>
           </div>
         </div>

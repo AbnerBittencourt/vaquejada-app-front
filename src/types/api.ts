@@ -57,7 +57,7 @@ export type EventResponse = {
   endAt: string;
   purchaseClosedAt: string;
   status: EventStatusEnum;
-  prize: string;
+  prize: number;
   address?: string;
   city?: string;
   state?: string;
@@ -76,10 +76,13 @@ export type ListEventResponse = {
   startAt: string;
   endAt: string;
   status: EventStatusEnum;
+  description: string;
   address: string;
+  prize: string;
   city: string;
   state: string;
   purchaseClosedAt: string;
+  isActive: boolean;
 };
 
 export type CategoryResponse = {

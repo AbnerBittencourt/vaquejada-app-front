@@ -32,3 +32,18 @@ export const formatPrice = (price: number) => {
     currency: "BRL",
   }).format(price);
 };
+
+export const formatCurrency = (value: string): string => {
+  if (!value) return "";
+
+  const numericValue = value.replace(/[^\d.]/g, "");
+
+  if (!numericValue) return "";
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(numericValue));
+};

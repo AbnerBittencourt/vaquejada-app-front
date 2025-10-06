@@ -1,3 +1,4 @@
+import { CreateEventDto } from "@/types/dtos/event.dto";
 import { EventStatusEnum } from "@/types/enums/api-enums";
 
 const API_URL = import.meta.env.API_URL || "http://localhost:3000";
@@ -13,20 +14,7 @@ export async function listEvents() {
   return await response.json();
 }
 
-export async function createEvent(eventData: {
-  name: string;
-  startAt: string;
-  endAt: string;
-  purchaseClosedAt: string;
-  status: EventStatusEnum;
-  address?: string;
-  city?: string;
-  state?: string;
-  description: string;
-  bannerUrl?: string;
-  isPublic: boolean;
-  organizerId: string;
-}) {
+export async function createEvent(eventData: CreateEventDto) {
   const token = localStorage.getItem("token");
   const response = await fetch(`${API_URL}/events`, {
     method: "POST",
@@ -67,6 +55,54 @@ export async function getEventCategories(eventId: string, token: string) {
 
   if (!response.ok) {
     throw new Error("Erro ao obter categorias do evento");
+  }
+
+  return await response.json();
+}
+
+export async function updateEvent(
+  eventId: string,
+  eventData: Partial<CreateEventDto>,
+  token: string
+) {
+  const response = await fetch(`${API_URL}/events/${eventId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(eventData),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao atualizar evento");
+  }
+
+  return await response.json();
+}
+
+export async function createEventCategory(
+  eventCategoryData: {
+    eventId: string;
+    categoryId: string;
+    price: number;
+    startAt: string;
+    endAt: string;
+    maxRunners: number;
+  },
+  token: string
+) {
+  const response = await fetch(`${API_URL}/event-categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(eventCategoryData),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao criar categoria do evento");
   }
 
   return await response.json();

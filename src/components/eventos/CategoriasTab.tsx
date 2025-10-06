@@ -61,7 +61,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 
   const checkAuthentication = () => {
     const token = localStorage.getItem("token");
-    console.log("Token encontrado:", token);
+
     const userIsAuthenticated = !!token;
     setIsAuthenticated(userIsAuthenticated);
     return userIsAuthenticated;

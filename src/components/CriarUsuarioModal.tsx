@@ -99,7 +99,6 @@ export const CriarUsuarioModal = ({
         return;
       }
 
-      console.log("CPF length:", formData.cpf.length);
       if (!formData.cpf || formData.cpf.length !== 14) {
         toast({
           title: "CPF inválido",

@@ -77,7 +77,7 @@ const Login = () => {
               <Users className="h-10 w-10 text-primary relative z-10" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Trilha do Vaqueiro
+              Vaquejada APP
             </h1>
           </div>
 
@@ -93,7 +93,7 @@ const Login = () => {
                 Bem-vindo de volta
               </CardTitle>
               <CardDescription className="text-base">
-                Entre na sua conta do Trilha do Vaqueiro
+                Entre na sua conta do Vaquejada APP
               </CardDescription>
             </div>
           </CardHeader>

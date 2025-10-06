@@ -30,7 +30,7 @@ export enum CategoryNameEnum {
   PROFESSIONAL = "professional",
   AMATEUR = "amateur",
   JUNIOR = "junior",
-  FEMALE = "female",
+  FEMALE = "feminine",
   INTERMEDIARY = "intermediary",
   DERBY = "derby",
   ASPIRANT = "aspirant",

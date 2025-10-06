@@ -262,7 +262,7 @@ const EventoDetalhes = () => {
                   <Users className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
                 </div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Trilha do Vaqueiro
+                  Vaquejada APP
                 </h1>
               </Link>
             </div>
@@ -367,7 +367,7 @@ const EventoDetalhes = () => {
                 <Users className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Trilha do Vaqueiro
+                Vaquejada APP
               </h1>
             </Link>
           </div>

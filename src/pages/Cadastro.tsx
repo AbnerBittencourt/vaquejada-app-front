@@ -76,7 +76,7 @@ const Cadastro = () => {
               <Users className="h-10 w-10 text-primary relative z-10" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Trilha do Vaqueiro
+              Vaquejada APP
             </h1>
           </div>
         </div>
