@@ -30,7 +30,12 @@ import {
   getCategoryNameMap,
   getSubscriptionStatusMap,
 } from "@/types/enums/enum-maps";
-import { formatDate, formatPhone, formatPrice } from "@/utils/format-data.util";
+import {
+  formatCPF,
+  formatDate,
+  formatPhone,
+  formatPrice,
+} from "@/utils/format-data.util";
 import { SubscriptionStatusEnum } from "@/types/enums/api-enums";
 
 interface DetalhesInscricaoModalProps {
@@ -128,7 +133,6 @@ export const DetalhesInscricaoModal = ({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Header com Avatar e Status */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20 border-4 border-primary/10">
@@ -155,7 +159,6 @@ export const DetalhesInscricaoModal = ({
 
           <Separator />
 
-          {/* Informações de Contato */}
           <div className="space-y-4">
             <h4 className="font-semibold text-lg flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
@@ -192,7 +195,7 @@ export const DetalhesInscricaoModal = ({
                   <div>
                     <p className="text-sm text-muted-foreground">CPF</p>
                     <p className="font-medium text-foreground">
-                      {inscricao.runner.cpf}
+                      {formatCPF(inscricao.runner.cpf)}
                     </p>
                   </div>
                 </div>
@@ -240,6 +243,38 @@ export const DetalhesInscricaoModal = ({
                   </p>
                 </div>
               </div>
+
+              {inscricao.passwords && inscricao.passwords.length > 0 ? (
+                <div className="col-span-2 bg-muted/30 rounded-xl p-4">
+                  <h5 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Senhas compradas
+                  </h5>
+                  <div className="flex flex-wrap gap-3">
+                    {inscricao.passwords.map((senha, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="secondary"
+                        className="px-4 py-2 text-base font-bold rounded-lg shadow-sm border border-primary/20 bg-primary/10 text-primary"
+                      >
+                        {senha.number}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Data da inscrição
+                    </p>
+                    <p className="font-medium text-foreground">
+                      {formatDate(inscricao.subscribedAt)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -267,47 +302,6 @@ export const DetalhesInscricaoModal = ({
               </div>
             </div>
           </div>
-
-          {/* Ações de Status */}
-          {inscricao.status !== SubscriptionStatusEnum.CONFIRMED && (
-            <>
-              <Separator />
-              <div className="space-y-4">
-                <h4 className="font-semibold text-lg flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                  Ações
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {inscricao.status === SubscriptionStatusEnum.PENDING && (
-                    <Button
-                      onClick={() =>
-                        handleStatusChange(SubscriptionStatusEnum.CONFIRMED)
-                      }
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Confirmar Inscrição
-                    </Button>
-                  )}
-
-                  {inscricao.status !== SubscriptionStatusEnum.CANCELLED && (
-                    <Button
-                      onClick={() =>
-                        handleStatusChange(SubscriptionStatusEnum.CANCELLED)
-                      }
-                      disabled={loading}
-                      variant="destructive"
-                      className="bg-red-600 hover:bg-red-700 text-white border-none"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Cancelar Inscrição
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Botões de Ação */}
           <div className="flex justify-between items-center pt-4 border-t">

@@ -34,8 +34,10 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   createEventCategory,
+  deleteEventCategory,
   getEventCategories,
   updateEvent,
+  updateEventCategory,
 } from "@/lib/services/event.service";
 import { CategoryNameEnum } from "@/types/enums/api-enums";
 import { listCategories } from "@/lib/services/category.service";
@@ -76,6 +78,9 @@ interface CategoriaForm {
   categoryId: string;
   price: string;
   maxRunners: string;
+  passwordLimit: string;
+  initialPassword: string;
+  finalPassword: string;
   startAt: string;
   endAt: string;
   currentRunners?: number;
@@ -127,7 +132,9 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     null
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [categorias, setCategorias] = useState<CategoriaForm[]>([]);
+  const [categoriasDoEvento, setCategoriasDoEvento] = useState<CategoriaForm[]>(
+    []
+  );
   const [loadingEvent, setLoadingEvent] = useState(false);
   const [formData, setFormData] = useState<EventFormData>({
     name: "",
@@ -142,17 +149,16 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     isActive: true,
   });
 
-  const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<
-    { id: string; name: string }[]
-  >([]);
+  const [categoriasDoEventoDisponiveis, setCategoriasDoEventoDisponiveis] =
+    useState<{ id: string; name: string }[]>([]);
 
   React.useEffect(() => {
-    const fetchCategoriasDisponiveis = async () => {
+    const fetchCategoriasDoEventoDisponiveis = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await listCategories(token);
         if (response.data && Array.isArray(response.data)) {
-          setCategoriasDisponiveis(
+          setCategoriasDoEventoDisponiveis(
             response.data.map((cat) => ({
               id: cat.category?.id || cat.id,
               name: getCategoryNameMap(cat.name as CategoryNameEnum),
@@ -160,11 +166,11 @@ export const EventosTab: React.FC<EventosTabProps> = ({
           );
         }
       } catch (err) {
-        console.error("Erro ao buscar categorias disponíveis:", err);
-        setCategoriasDisponiveis([]);
+        console.error("Erro ao buscar categoriasDoEvento disponíveis:", err);
+        setCategoriasDoEventoDisponiveis([]);
       }
     };
-    fetchCategoriasDisponiveis();
+    fetchCategoriasDoEventoDisponiveis();
   }, []);
 
   const getStatusColor = (status: EventStatusEnum) => {
@@ -195,7 +201,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       setEditingEvent(evento);
       setIsEditModalOpen(true);
 
-      console.log("Editing event:", evento);
       setFormData({
         name: evento.name || "",
         prize: evento.prize ? formatCurrency(evento.prize) : "",
@@ -219,7 +224,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       const response = await getEventCategories(evento.id, token);
 
       if (response.data && Array.isArray(response.data)) {
-        const categoriasMapeadas = response.data.map((cat) => ({
+        const categoriasDoEventoMapeadas = response.data.map((cat) => ({
           id: cat.id,
           categoryId: cat.category?.id || "",
           price: cat.price?.toString() || "",
@@ -231,12 +236,15 @@ export const EventosTab: React.FC<EventosTabProps> = ({
             ? new Date(cat.endAt).toISOString().split("T")[0]
             : "",
           currentRunners: cat.currentRunners || 0,
+          passwordLimit: cat.passwordLimit || 0,
           isActive: cat.isActive || false,
           category: cat.category,
+          initialPassword: cat.initialPassword || 0,
+          finalPassword: cat.finalPassword || 0,
         }));
-        setCategorias(categoriasMapeadas);
+        setCategoriasDoEvento(categoriasDoEventoMapeadas);
       } else {
-        setCategorias([]);
+        setCategoriasDoEvento([]);
       }
     } catch (err) {
       console.error("Erro ao carregar evento:", err);
@@ -245,27 +253,50 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         description: "Não foi possível carregar os dados do evento",
         variant: "destructive",
       });
-      setCategorias([]);
+      setCategoriasDoEvento([]);
     } finally {
       setLoadingEvent(false);
     }
   };
 
   const addCategoria = () => {
-    setCategorias((prev) => [
+    setCategoriasDoEvento((prev) => [
       ...prev,
       {
         categoryId: "",
         price: "",
         maxRunners: "",
+        passwordLimit: "",
+        initialPassword: "",
+        finalPassword: "",
         startAt: "",
         endAt: "",
       },
     ]);
   };
 
-  const removeCategoria = (index: number) => {
-    setCategorias((prev) => prev.filter((_, i) => i !== index));
+  const removeCategoria = async (index: number) => {
+    const categoria = categoriasDoEvento[index];
+
+    if (categoria.id && editingEvent?.id) {
+      try {
+        await deleteEventCategory(editingEvent.id, categoria.id);
+        toast({
+          title: "Sucesso",
+          description: "Categoria removida com sucesso!",
+        });
+      } catch (err) {
+        console.error("Erro ao remover categoria:", err);
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover a categoria",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setCategoriasDoEvento((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateCategoria = (
@@ -273,7 +304,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     field: keyof CategoriaForm,
     value: string
   ) => {
-    setCategorias((prev) =>
+    setCategoriasDoEvento((prev) =>
       prev.map((cat, i) => (i === index ? { ...cat, [field]: value } : cat))
     );
   };
@@ -281,7 +312,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
   const handleSaveEvent = async () => {
     try {
       const token = localStorage.getItem("token");
-      console.log("Token:", token);
+
       const udpatedData: CreateEventDto = {
         name: formData.name,
         startAt: formData.startAt,
@@ -292,12 +323,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         state: formData.state,
         description: formData.description,
       };
-      console.log("Salvando evento:", formData);
 
-      console.log("Categorias:", categorias);
       await updateEvent(editingEvent!.id, udpatedData, token);
 
-      categorias.map(async (categoria) => {
+      categoriasDoEvento.map(async (categoria) => {
         const eventCategoryData = {
           eventId: editingEvent!.id,
           categoryId: categoria.categoryId,
@@ -305,10 +334,13 @@ export const EventosTab: React.FC<EventosTabProps> = ({
           startAt: categoria.startAt,
           endAt: categoria.endAt,
           maxRunners: Number(categoria.maxRunners),
+          passwordLimit: Number(categoria.passwordLimit),
+          initialPassword: Number(categoria.initialPassword),
+          finalPassword: Number(categoria.finalPassword),
         };
 
         if (categoria.id) {
-          //rota de put
+          await updateEventCategory(categoria.id, eventCategoryData, token);
         } else {
           await createEventCategory(eventCategoryData, token);
         }
@@ -321,7 +353,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
       setIsEditModalOpen(false);
       setEditingEvent(null);
-      setCategorias([]);
+      setCategoriasDoEvento([]);
       setFormData({
         name: "",
         prize: "",
@@ -542,7 +574,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
               Editar Evento: {editingEvent?.name}
             </DialogTitle>
             <DialogDescription>
-              Atualize as informações do evento e gerencie as categorias
+              Atualize as informações do evento e gerencie as categoriasDoEvento
             </DialogDescription>
           </DialogHeader>
 
@@ -698,7 +730,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>Categorias do Evento</CardTitle>
+                    <CardTitle>CategoriasDoEvento do Evento</CardTitle>
                     <Button onClick={addCategoria} className="gap-2">
                       <Plus className="h-4 w-4" />
                       Adicionar Categoria
@@ -706,16 +738,16 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {categorias.length === 0 ? (
+                  {categoriasDoEvento.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
                       <p>Nenhuma categoria adicionada</p>
                       <p className="text-sm">
-                        Adicione categorias para vender senhas
+                        Adicione categoriasDoEvento para vender senhas
                       </p>
                     </div>
                   ) : (
-                    categorias.map((categoria, index) => (
+                    categoriasDoEvento.map((categoria, index) => (
                       <Card key={categoria.id || index} className="border-2">
                         <CardHeader>
                           <div className="flex items-center justify-between">
@@ -757,7 +789,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                                 <option value="">
                                   Selecione uma categoria
                                 </option>
-                                {categoriasDisponiveis.map((cat) => (
+                                {categoriasDoEventoDisponiveis.map((cat) => (
                                   <option key={cat.id} value={cat.id}>
                                     {cat.name}
                                   </option>
@@ -809,6 +841,69 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             </div>
 
                             <div className="space-y-2">
+                              <Label htmlFor={`passwordLimit-${index}`}>
+                                Limite de Senhas
+                              </Label>
+                              <Input
+                                id={`passwordLimit-${index}`}
+                                type="number"
+                                value={categoria.passwordLimit}
+                                onChange={(e) =>
+                                  updateCategoria(
+                                    index,
+                                    "passwordLimit",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                min="1"
+                                className="bg-background"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`initialPassword-${index}`}>
+                                Senha Inicial
+                              </Label>
+                              <Input
+                                id={`initialPassword-${index}`}
+                                type="number"
+                                value={categoria.initialPassword}
+                                onChange={(e) =>
+                                  updateCategoria(
+                                    index,
+                                    "initialPassword",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                min="1"
+                                className="bg-background"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`finalPassword-${index}`}>
+                                Senha Final
+                              </Label>
+                              <Input
+                                id={`finalPassword-${index}`}
+                                type="number"
+                                value={categoria.finalPassword}
+                                onChange={(e) =>
+                                  updateCategoria(
+                                    index,
+                                    "finalPassword",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                min="1"
+                                className="bg-background"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
                               <Label htmlFor={`startAt-${index}`}>
                                 Início da Categoria
                               </Label>
@@ -826,9 +921,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                                 className="bg-background"
                               />
                             </div>
-                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`endAt-${index}`}>
                                 Fim da Categoria
@@ -847,8 +940,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                                 className="bg-background"
                               />
                             </div>
+                          </div>
 
-                            {/* Informações adicionais para categorias existentes */}
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Informações adicionais para categoriasDoEvento existentes */}
                             {categoria.id && (
                               <>
                                 <div className="space-y-2">

@@ -23,20 +23,16 @@ import { EventCategoryResponse, PasswordResponse } from "@/types/api";
 import { formatPrice } from "@/utils/format-data.util";
 import { getCategoryNameMap } from "@/types/enums/enum-maps";
 import { PasswordStatusEnum } from "@/types/enums/api-enums";
-import { getCategoryPasswords } from "@/lib/services/password.service";
+import {
+  getCategoryPasswords,
+  purchasePasswords,
+} from "@/lib/services/password.service";
 
 interface CategoriasTabProps {
   eventoId: string;
   categorias: EventCategoryResponse[];
   loading: boolean;
   eventoStatus: string;
-}
-
-interface NumberInfo {
-  number: number;
-  occupied: boolean;
-  password: PasswordResponse | null;
-  status: string;
 }
 
 export const CategoriasTab: React.FC<CategoriasTabProps> = ({
@@ -78,8 +74,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 
     try {
       setLoadingPasswords(true);
-      const token = localStorage.getItem("token");
-      // Se não estiver autenticado, carrega sem token (apenas para visualização)
       const response = await getCategoryPasswords(
         eventoId,
         selectedCategory.category.id
@@ -193,58 +187,33 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
   }, [isAuthenticated, categorias]);
 
-  // Gerar números baseado nas senhas retornadas da API
-  const generateNumbers = (): NumberInfo[] => {
-    if (!selectedCategory) return [];
-
-    const totalSpots = selectedCategory.maxRunners || 0;
-    const numbers: NumberInfo[] = [];
-
-    // Criar array com todas as posições possíveis
-    for (let i = 1; i <= totalSpots; i++) {
-      const password = passwords.find((p) => Number(p.number) === i);
-
-      numbers.push({
-        number: i,
-        occupied:
-          !!password && password.status !== PasswordStatusEnum.AVAILABLE,
-        password: password || null,
-        status: password?.status || PasswordStatusEnum.AVAILABLE,
-      });
-    }
-
-    return numbers;
-  };
-
   const toggleNumber = (num: number) => {
-    // Verificar se o número está disponível
-    const numberInfo = generateNumbers().find((n) => n.number === num);
-    if (numberInfo?.occupied) return;
+    const numberInfo = passwords.find((n) => Number(n.number) === num);
+    if (!numberInfo || numberInfo.status !== PasswordStatusEnum.AVAILABLE)
+      return;
 
     setSelectedNumbers((prev) =>
       prev.includes(num) ? prev.filter((n) => n !== num) : [...prev, num]
     );
 
-    // Atualizar também os IDs das senhas selecionadas
     setSelectedPasswordIds((prev) => {
-      if (prev.includes(numberInfo?.password?.id || "")) {
-        return prev.filter((id) => id !== numberInfo?.password?.id);
+      const passwordId = numberInfo?.id;
+      if (!passwordId) return prev;
+
+      if (prev.includes(passwordId)) {
+        return prev.filter((id) => id !== passwordId);
       } else {
-        if (numberInfo?.password?.id) {
-          return [...prev, numberInfo.password.id];
-        }
-        return prev;
+        return [...prev, passwordId];
       }
     });
   };
 
-  const getNumberColor = (numberInfo: NumberInfo) => {
-    if (numberInfo.occupied) {
+  const getNumberColor = (numberInfo: PasswordResponse) => {
+    // Senha ocupada (não disponível)
+    if (numberInfo.status !== PasswordStatusEnum.AVAILABLE) {
       switch (numberInfo.status) {
-        case PasswordStatusEnum.AVAILABLE:
-          return "bg-green-500 text-white border-green-600";
         case PasswordStatusEnum.RESERVED:
-          return "bg-orange-400 text-white border-orange-500";
+          return "bg-green-500 text-white border-green-500"; // alterado para verde
         case PasswordStatusEnum.USED:
           return "bg-gray-400 text-white border-gray-500";
         default:
@@ -252,25 +221,24 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       }
     }
 
-    return selectedNumbers.includes(numberInfo.number)
+    // Senha disponível
+    return selectedNumbers.includes(Number(numberInfo.number))
       ? "bg-primary text-white border-primary"
       : "bg-background hover:bg-accent hover:border-accent-foreground cursor-pointer";
   };
-
-  const getNumberTooltip = (numberInfo: NumberInfo) => {
-    if (numberInfo.occupied && numberInfo.password) {
-      const statusMap = {
+  const getNumberTooltip = (numberInfo: PasswordResponse) => {
+    if (numberInfo.status !== PasswordStatusEnum.AVAILABLE) {
+      const statusMap: Record<string, string> = {
         [PasswordStatusEnum.AVAILABLE]: "disponível",
-        [PasswordStatusEnum.RESERVED]: "pendente",
+        [PasswordStatusEnum.RESERVED]: "reservada",
         [PasswordStatusEnum.USED]: "usada",
       };
-
-      return `Senha ${statusMap[numberInfo.status]}`;
+      return `Senha ${statusMap[numberInfo.status] || "indisponível"}`;
     }
     return "Disponível";
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     // Verificar autenticação apenas no checkout
     if (!isAuthenticated) {
       toast({
@@ -306,10 +274,15 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     // Alterado para enviar IDs das senhas ao invés dos números
     console.log("Processando compra:", {
       eventoId,
-      categoryId: selectedCategory?.id,
+      categoryId: selectedCategory?.category.id,
       passwordIds: selectedPasswordIds,
       numbers: selectedNumbers,
       total: (Number(selectedCategory?.price) || 0) * selectedNumbers.length,
+    });
+    await purchasePasswords({
+      eventId: eventoId,
+      categoryId: selectedCategory?.category.id || "",
+      passwordIds: selectedPasswordIds,
     });
   };
 
@@ -429,9 +402,15 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                       {categoria.category.description}
                     </p>
                   )}
-                  <div className="mt-2 text-xs text-muted-foreground">
+                  <div className="mt-2 text-sm text-muted-foreground">
                     Período: {new Date(categoria.startAt).toLocaleDateString()}{" "}
                     - {new Date(categoria.endAt).toLocaleDateString()}
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Limite de senhas por participante:{" "}
+                    <span className="font-semibold">
+                      {categoria.passwordLimit || 1}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -476,7 +455,11 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
               <CardDescription>
                 {loadingPasswords
                   ? "Carregando senhas disponíveis..."
-                  : `Selecione os números desejados (${selectedNumbers.length} selecionadas) • ${availableSpots} vagas livres de ${totalSpots}`}
+                  : `Selecione os números desejados (${
+                      selectedNumbers.length
+                    } selecionadas) • ${availableSpots} vagas livres de ${totalSpots} • LIMITE DE SENHAS: ${
+                      selectedCategory.passwordLimit || 1
+                    }`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -490,29 +473,63 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
               ) : (
                 <>
                   <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 mb-6">
-                    {generateNumbers().map((numberInfo) => (
-                      <button
-                        key={numberInfo.number}
-                        onClick={() => toggleNumber(numberInfo.number)}
-                        disabled={numberInfo.occupied}
-                        title={getNumberTooltip(numberInfo)}
-                        className={`
-                          aspect-square rounded-lg border-2 font-semibold text-sm
-                          transition-all relative
-                          ${getNumberColor(numberInfo)}
-                          ${
-                            numberInfo.occupied
-                              ? "cursor-not-allowed"
-                              : "cursor-pointer"
-                          }
-                        `}
-                      >
-                        {numberInfo.number}
-                        {numberInfo.occupied && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-current"></div>
-                        )}
-                      </button>
-                    ))}
+                    {passwords
+                      .slice()
+                      .sort((a, b) => Number(a.number) - Number(b.number))
+                      .map((numberInfo) => {
+                        const isSelected = selectedNumbers.includes(
+                          Number(numberInfo.number)
+                        );
+                        const selectionLimitReached =
+                          !isSelected &&
+                          selectedNumbers.length >=
+                            (selectedCategory.passwordLimit || 1);
+
+                        return (
+                          <button
+                            key={numberInfo.number}
+                            onClick={() => {
+                              if (
+                                numberInfo.status ===
+                                  PasswordStatusEnum.AVAILABLE &&
+                                !selectionLimitReached
+                              ) {
+                                toggleNumber(Number(numberInfo.number));
+                              }
+                            }}
+                            disabled={
+                              numberInfo.status !==
+                                PasswordStatusEnum.AVAILABLE ||
+                              selectionLimitReached
+                            }
+                            title={
+                              selectionLimitReached
+                                ? `Limite de ${
+                                    selectedCategory.passwordLimit || 1
+                                  } senhas atingido`
+                                : getNumberTooltip(numberInfo)
+                            }
+                            className={`
+                              aspect-square rounded-lg border-2 font-semibold text-sm
+                              transition-all relative
+                              ${getNumberColor(numberInfo)}
+                              ${
+                                numberInfo.status !==
+                                  PasswordStatusEnum.AVAILABLE ||
+                                selectionLimitReached
+                                  ? "cursor-not-allowed"
+                                  : "cursor-pointer"
+                              }
+                            `}
+                          >
+                            {numberInfo.number}
+                            {numberInfo.status !==
+                              PasswordStatusEnum.AVAILABLE && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-current"></div>
+                            )}
+                          </button>
+                        );
+                      })}
                   </div>
 
                   <div className="flex flex-wrap gap-4 text-sm">
