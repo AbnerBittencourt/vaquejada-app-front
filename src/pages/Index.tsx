@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import { ListEventResponse } from "@/types/api";
 import { listEvents } from "@/lib/services/event.service";
 import { formatDate } from "@/utils/format-data.util";
+import { CountdownTimer } from "../components/CountdownTimer";
 
 const Index = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -279,6 +280,15 @@ const Index = () => {
                       </div>
                     </div>
 
+                    {/* Countdown Timer para Inscrições */}
+                    {event.purchaseClosedAt && (
+                      <div className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+                        <CountdownTimer
+                          purchaseClosedAt={event.purchaseClosedAt}
+                        />
+                      </div>
+                    )}
+
                     {/* Status das Inscrições */}
                     <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
                       <div className="flex-shrink-0">
@@ -302,12 +312,9 @@ const Index = () => {
                             : "Inscrições Encerradas"}
                         </p>
                         {event.purchaseClosedAt ? (
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 text-xs text-muted-foreground">
-                            <span>Encerram em</span>
-                            <span className="font-semibold text-green-600">
-                              {formatDate(event.purchaseClosedAt)}
-                            </span>
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Não perca o prazo para se inscrever
+                          </p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             Período de inscrições finalizado

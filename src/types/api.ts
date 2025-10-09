@@ -109,6 +109,7 @@ export type EventCategoryResponse = {
   endAt: string;
   maxRunners: number;
   currentRunners: number;
+  passwordLimit: number;
   isActive: boolean;
   category: CategoryResponse;
   isAvailable?: boolean;
@@ -157,6 +158,6 @@ export type ListSubscriptionResponse = {
   category: CategoryResponse;
   subscribedAt: string;
   status: SubscriptionStatusEnum;
-  password: string;
+  passwords: PasswordResponse[];
   passwordPrice: string;
 };
