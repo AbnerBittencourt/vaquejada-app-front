@@ -86,6 +86,7 @@ export async function createEventCategory(
     eventId: string;
     categoryId: string;
     price: number;
+    passwordLimit: number;
     startAt: string;
     endAt: string;
     maxRunners: number;
@@ -106,4 +107,52 @@ export async function createEventCategory(
   }
 
   return await response.json();
+}
+
+export async function updateEventCategory(
+  eventCategoryId: string,
+  eventCategoryData: Partial<{
+    eventId: string;
+    categoryId: string;
+    passwordLimit: number;
+    price: number;
+    startAt: string;
+    endAt: string;
+    maxRunners: number;
+  }>,
+  token: string
+) {
+  const response = await fetch(
+    `${API_URL}/event-categories/${eventCategoryId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(eventCategoryData),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao atualizar categoria do evento");
+  }
+
+  return await response.json();
+}
+
+export async function deleteEventCategory(
+  eventId: string,
+  eventCategoryId: string
+) {
+  const token = localStorage.getItem("token");
+  const response = await fetch(
+    `${API_URL}/event-categories/${eventCategoryId}/${eventId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 }

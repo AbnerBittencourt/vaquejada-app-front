@@ -19,3 +19,27 @@ export const getCategoryPasswords = async (
 
   return response.json();
 };
+
+export const purchasePasswords = async (data: {
+  eventId: string;
+  categoryId: string;
+  passwordIds: string[];
+}) => {
+  const token = localStorage.getItem("token");
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  const response = await fetch(`${API_URL}/passwords/purchase`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao processar compra");
+  }
+
+  return response.json();
+};
