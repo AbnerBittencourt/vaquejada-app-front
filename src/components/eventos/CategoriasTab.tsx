@@ -57,7 +57,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 
   const checkAuthentication = () => {
     const token = localStorage.getItem("token");
-
     const userIsAuthenticated = !!token;
     setIsAuthenticated(userIsAuthenticated);
     return userIsAuthenticated;
@@ -78,7 +77,12 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         eventoId,
         selectedCategory.category.id
       );
+      console.log("Passwords carregadas:", response);
       setPasswords(response || []);
+
+      // Limpar seleções quando as senhas são recarregadas
+      setSelectedNumbers([]);
+      setSelectedPasswordIds([]);
     } catch (err) {
       console.error("Erro ao carregar senhas:", err);
       toast({
@@ -91,8 +95,33 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
   };
 
+  // Sincronizar selectedNumbers e selectedPasswordIds
+  useEffect(() => {
+    if (selectedNumbers.length === 0 && selectedPasswordIds.length === 0)
+      return;
+
+    // Se houver inconsistência, corrigir
+    if (selectedNumbers.length !== selectedPasswordIds.length) {
+      console.warn("Inconsistência detectada, recalculando IDs...");
+
+      const recalculatedIds = selectedNumbers
+        .map((num) => {
+          const password = passwords.find((p) => Number(p.number) === num);
+          return password?.id;
+        })
+        .filter(Boolean) as string[];
+
+      if (recalculatedIds.length === selectedNumbers.length) {
+        setSelectedPasswordIds(recalculatedIds);
+      } else {
+        // Se não conseguir recalcular, limpar tudo
+        setSelectedNumbers([]);
+        setSelectedPasswordIds([]);
+      }
+    }
+  }, [selectedNumbers, selectedPasswordIds, passwords]);
+
   const handleLoginRedirect = () => {
-    // Salvar o estado atual para retornar após o login
     const currentState = {
       eventoId,
       selectedCategory: selectedCategory?.id,
@@ -111,14 +140,13 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
   };
 
   const handleLoginForCheckout = () => {
-    // Salvar estado específico para checkout
     const checkoutState = {
       eventoId,
       selectedCategory: selectedCategory?.id,
       selectedNumbers,
       selectedPasswordIds,
       categorias,
-      isCheckout: true, // Flag para identificar que é para checkout
+      isCheckout: true,
     };
 
     localStorage.setItem("loginRedirectState", JSON.stringify(checkoutState));
@@ -136,7 +164,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       try {
         const state = JSON.parse(savedState);
 
-        // Restaurar categoria selecionada se ainda existir
         if (state.selectedCategory) {
           const category = categorias.find(
             (cat) => cat.id === state.selectedCategory
@@ -146,12 +173,14 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
           }
         }
 
-        // Restaurar números selecionados
         if (state.selectedNumbers && state.selectedNumbers.length > 0) {
           setSelectedNumbers(state.selectedNumbers);
         }
 
-        // Limpar estado salvo
+        if (state.selectedPasswordIds && state.selectedPasswordIds.length > 0) {
+          setSelectedPasswordIds(state.selectedPasswordIds);
+        }
+
         localStorage.removeItem("loginRedirectState");
         localStorage.removeItem("loginRedirectUrl");
 
@@ -162,7 +191,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
             : "Sua seleção foi restaurada.",
         });
 
-        // Se era para checkout, focar no botão de checkout
         if (state.isCheckout) {
           setTimeout(() => {
             const checkoutButton = document.querySelector(
@@ -180,7 +208,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
   };
 
-  // Verificar se há estado para restaurar após login
   useEffect(() => {
     if (isAuthenticated && categorias.length > 0) {
       restoreSelectionAfterLogin();
@@ -189,31 +216,43 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 
   const toggleNumber = (num: number) => {
     const numberInfo = passwords.find((n) => Number(n.number) === num);
-    if (!numberInfo || numberInfo.status !== PasswordStatusEnum.AVAILABLE)
+    if (!numberInfo || numberInfo.status !== PasswordStatusEnum.AVAILABLE) {
       return;
+    }
 
-    setSelectedNumbers((prev) =>
-      prev.includes(num) ? prev.filter((n) => n !== num) : [...prev, num]
-    );
+    const passwordId = numberInfo.id;
+    if (!passwordId) {
+      console.error("Password ID não encontrado para o número:", num);
+      toast({
+        title: "Erro",
+        description: "Não foi possível selecionar esta senha. Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedNumbers((prev) => {
+      const newSelectedNumbers = prev.includes(num)
+        ? prev.filter((n) => n !== num)
+        : [...prev, num];
+
+      return newSelectedNumbers;
+    });
 
     setSelectedPasswordIds((prev) => {
-      const passwordId = numberInfo?.id;
-      if (!passwordId) return prev;
+      const newSelectedPasswordIds = prev.includes(passwordId)
+        ? prev.filter((id) => id !== passwordId)
+        : [...prev, passwordId];
 
-      if (prev.includes(passwordId)) {
-        return prev.filter((id) => id !== passwordId);
-      } else {
-        return [...prev, passwordId];
-      }
+      return newSelectedPasswordIds;
     });
   };
 
   const getNumberColor = (numberInfo: PasswordResponse) => {
-    // Senha ocupada (não disponível)
     if (numberInfo.status !== PasswordStatusEnum.AVAILABLE) {
       switch (numberInfo.status) {
         case PasswordStatusEnum.RESERVED:
-          return "bg-green-500 text-white border-green-500"; // alterado para verde
+          return "bg-green-500 text-white border-green-500";
         case PasswordStatusEnum.USED:
           return "bg-gray-400 text-white border-gray-500";
         default:
@@ -221,11 +260,11 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       }
     }
 
-    // Senha disponível
     return selectedNumbers.includes(Number(numberInfo.number))
       ? "bg-primary text-white border-primary"
       : "bg-background hover:bg-accent hover:border-accent-foreground cursor-pointer";
   };
+
   const getNumberTooltip = (numberInfo: PasswordResponse) => {
     if (numberInfo.status !== PasswordStatusEnum.AVAILABLE) {
       const statusMap: Record<string, string> = {
@@ -239,7 +278,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
   };
 
   const handleCheckout = async () => {
-    // Verificar autenticação apenas no checkout
     if (!isAuthenticated) {
       toast({
         title: "Login necessário",
@@ -258,6 +296,15 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       return;
     }
 
+    if (selectedPasswordIds.length === 0) {
+      toast({
+        description:
+          "Erro nas senhas selecionadas. Por favor, recarregue a página.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!acceptedTerms) {
       toast({
         description: "Você precisa aceitar o regulamento do evento",
@@ -266,24 +313,63 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       return;
     }
 
-    // Aqui você integraria com a API de compra
-    toast({
-      description: `${selectedNumbers.length} senha(s) selecionada(s)!`,
-    });
+    // Verificar se há inconsistência
+    if (selectedNumbers.length !== selectedPasswordIds.length) {
+      toast({
+        title: "Erro",
+        description:
+          "Inconsistência nas senhas selecionadas. Por favor, selecione novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Alterado para enviar IDs das senhas ao invés dos números
-    console.log("Processando compra:", {
-      eventoId,
-      categoryId: selectedCategory?.category.id,
-      passwordIds: selectedPasswordIds,
-      numbers: selectedNumbers,
-      total: (Number(selectedCategory?.price) || 0) * selectedNumbers.length,
-    });
-    await purchasePasswords({
-      eventId: eventoId,
-      categoryId: selectedCategory?.category.id || "",
-      passwordIds: selectedPasswordIds,
-    });
+    try {
+      console.log("Enviando para compra:", {
+        eventId: eventoId,
+        categoryId: selectedCategory?.category.id,
+        passwordIds: selectedPasswordIds,
+        selectedNumbers: selectedNumbers,
+      });
+
+      const result = await purchasePasswords({
+        eventId: eventoId,
+        categoryId: selectedCategory?.category.id || "",
+        passwordIds: selectedPasswordIds,
+      });
+
+      console.log("Resposta da compra:", result);
+
+      toast({
+        title: "Sucesso!",
+        description: "Compra realizada com sucesso!",
+      });
+
+      // Limpar seleções após compra bem-sucedida
+      setSelectedNumbers([]);
+      setSelectedPasswordIds([]);
+      setAcceptedTerms(false);
+
+      // Recarregar as senhas para atualizar o status
+      carregarPasswords();
+    } catch (error) {
+      console.error("Erro na compra:", error);
+
+      let errorMessage =
+        "Não foi possível processar a compra. Tente novamente.";
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "Erro na compra",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   const resetSelection = () => {
@@ -294,15 +380,12 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     setAcceptedTerms(false);
   };
 
-  // Calcular vagas disponíveis
   const getAvailableSpots = () => {
     if (!selectedCategory) return 0;
-
     const totalSpots = selectedCategory.maxRunners || 0;
     const occupiedSpots = passwords.filter(
       (p) => p.status !== PasswordStatusEnum.AVAILABLE
     ).length;
-
     return totalSpots - occupiedSpots;
   };
 
@@ -342,7 +425,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Banner de login recomendado quando há seleções mas não está logado */}
       {!isAuthenticated && selectedNumbers.length > 0 && (
         <Card className="border-2 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
@@ -366,7 +448,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         </Card>
       )}
 
-      {/* Seleção de Categoria */}
       {!selectedCategory ? (
         <div>
           <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -419,7 +500,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Cabeçalho da Categoria Selecionada */}
           <Card className="border-2 bg-primary/5">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -445,7 +525,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
             </CardContent>
           </Card>
 
-          {/* Mapa de Senhas */}
           <Card className="border-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -555,7 +634,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
             </CardContent>
           </Card>
 
-          {/* Resumo e Checkout */}
           {!loadingPasswords && (
             <Card className="border-2 bottom-6 bg-background/95 backdrop-blur-sm">
               <CardContent className="p-6">

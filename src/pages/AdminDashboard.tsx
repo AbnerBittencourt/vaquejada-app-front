@@ -128,10 +128,9 @@ const AdminDashboard = () => {
   const fetchUsuarios = async () => {
     try {
       setLoadingUsuarios(true);
-      const token = localStorage.getItem("token");
-      const response = await listUsers(token || "");
-      const data = await response.json();
-      setUsuarios(data ?? []);
+      const response = await listUsers();
+      console.log(response);
+      setUsuarios(response ?? []);
     } catch (err) {
       console.error("Erro ao carregar usuários:", err);
       setUsuarios([]);
@@ -143,10 +142,8 @@ const AdminDashboard = () => {
   const fetchUsuario = async () => {
     try {
       setLoadingUsuario(true);
-      const token = localStorage.getItem("token");
-      const response = await getMe(token);
-      const data = await response.json();
-      setUsuario(data);
+      const response = await getMe();
+      setUsuario(response.data);
     } catch (err) {
       console.error("Erro ao carregar usuário:", err);
       setUsuario(null);
