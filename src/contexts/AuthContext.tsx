@@ -6,8 +6,6 @@ import { createContext, useContext, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
 interface AuthContextType {
   user: GetUserResponse | null;
   login: (email: string, senha: string) => Promise<void>;
@@ -35,11 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem("token", response.access_token);
 
-    const userRes = await getMe(response.access_token);
-    if (!userRes.ok) {
-      throw new Error("Não foi possível obter dados do usuário");
-    }
-    const userData: GetUserResponse = await userRes.json();
+    const userData: GetUserResponse = await getMe();
+
     localStorage.setItem("userId", userData.id);
     setUser(userData);
 
@@ -62,21 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     telefone: string;
   }) => {
     const response = await createUser(dados);
-    if (!response.ok) {
-      throw new Error("Erro ao cadastrar usuário");
-    }
 
-    const data: CreateUserResponse = await response.json();
-    if (!data.access_token) {
+    if (!response.access_token) {
       throw new Error("Token não recebido após cadastro");
     }
-    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("token", response.access_token);
 
-    const userRes = await getMe(data.access_token);
-    if (!userRes.ok) {
-      throw new Error("Não foi possível obter dados do usuário");
-    }
-    const userData: GetUserResponse = await userRes.json();
+    const userData: GetUserResponse = await getMe();
+
     localStorage.setItem("userId", userData.id);
     setUser(userData);
     toast.success("Conta criada com sucesso!");

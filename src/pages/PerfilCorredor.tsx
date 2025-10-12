@@ -83,7 +83,7 @@ const PerfilCorredor = () => {
         return;
       }
 
-      const response = await getUserById(userId, token);
+      const response = await getUserById(userId);
       setProfile(response);
       setFormData({
         name: response.name || "",
@@ -116,7 +116,7 @@ const PerfilCorredor = () => {
         return;
       }
 
-      await updateUser(userId, formData, token);
+      await updateUser(userId, formData);
 
       toast({
         title: "Sucesso",

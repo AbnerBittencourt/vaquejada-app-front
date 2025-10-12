@@ -152,7 +152,7 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
       }
 
       // Chamar a API para atualizar o usuário
-      const response = await updateUser(usuario.id, userData, token);
+      const response = await updateUser(usuario.id, userData);
 
       if (response) {
         toast({
