@@ -1,17 +1,11 @@
-const API_URL = import.meta.env.API_URL || "http://localhost:3000";
+import { api } from "@/api/api-connection";
 
 export async function listSubscriptions() {
-  const token = localStorage.getItem("token");
+  try {
+    const response = await api.get("/subscriptions");
 
-  const response = await fetch(`${API_URL}/subscriptions`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Erro ao listar eventos");
+    return response.data;
+  } catch (error) {
+    throw new Error("Erro ao listar assinaturas");
   }
-  return await response.json();
 }

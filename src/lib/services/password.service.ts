@@ -1,23 +1,17 @@
-const API_URL = import.meta.env.API_URL || "http://localhost:3000";
+import { api } from "@/api/api-connection";
 
 export const getCategoryPasswords = async (
   eventId: string,
   categoryId: string
 ) => {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-
-  const response = await fetch(
-    `${API_URL}/passwords?eventId=${eventId}&categoryId=${categoryId}`,
-    { method: "GET", headers }
-  );
-
-  if (!response.ok) {
-    throw new Error("Erro ao carregar senhas da categoria");
+  try {
+    const response = await api.get(
+      `/passwords?eventId=${eventId}&categoryId=${categoryId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error("Erro ao buscar senhas da categoria");
   }
-
-  return response.json();
 };
 
 export const purchasePasswords = async (data: {
@@ -25,21 +19,11 @@ export const purchasePasswords = async (data: {
   categoryId: string;
   passwordIds: string[];
 }) => {
-  const token = localStorage.getItem("token");
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+  try {
+    const response = await api.post("/passwords/purchase", data);
 
-  const response = await fetch(`${API_URL}/passwords/purchase`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
+    return response.data;
+  } catch (error) {
     throw new Error("Erro ao processar compra");
   }
-
-  return response.json();
 };

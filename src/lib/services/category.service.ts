@@ -1,15 +1,35 @@
-const API_URL = import.meta.env.API_URL || "http://localhost:3000";
+import { api } from "@/api/api-connection";
+import { CreateCategoryResponse } from "@/types/api";
 
-export async function listCategories(token: string) {
-  const response = await fetch(`${API_URL}/categories`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+// Listar categorias
+export async function listCategories() {
+  const response = await api.get("/categories");
+  return response.data;
+}
 
-  if (!response.ok) {
-    throw new Error("Erro ao listar categorias");
-  }
-  return await response.json();
+// Criar categoria
+export async function createCategory(data: Partial<CreateCategoryResponse>) {
+  const response = await api.post("/categories", data);
+  return response.data;
+}
+
+// Buscar categoria por ID
+export async function getCategoryById(categoryId: string) {
+  const response = await api.get(`/categories/${categoryId}`);
+  return response.data;
+}
+
+// Atualizar categoria
+export async function updateCategory(
+  categoryId: string,
+  data: Partial<CreateCategoryResponse>
+) {
+  const response = await api.put(`/categories/${categoryId}`, data);
+  return response.data;
+}
+
+// Deletar categoria
+export async function deleteCategory(categoryId: string) {
+  const response = await api.delete(`/categories/${categoryId}`);
+  return response.data;
 }

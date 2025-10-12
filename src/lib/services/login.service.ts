@@ -1,15 +1,11 @@
-const API_URL = import.meta.env.API_URL || "http://localhost:3000";
+import { api } from "@/api/api-connection";
 
 export async function userLogin(email: string, password: string) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!response.ok) {
+  try {
+    const response = await api.post("/auth/login", { email, password });
+    return response.data;
+  } catch (error) {
+    console.log(error);
     throw new Error("Login falhou");
   }
-  return response.json();
 }
