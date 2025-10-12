@@ -9,8 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "serve": "serve dist -p 4173"
+    "predeploy": "yarn build",
+    "serve": "yarn serve:dist",
+    "serve:dist": "serve dist -p 4173"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -85,9 +86,10 @@
     "vite": "^5.4.19",
     "vite-plugin-checker": "^0.6.4"
   },
+  "packageManager": "yarn@1.22.19",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   },
   "browserslist": {
     "production": [
