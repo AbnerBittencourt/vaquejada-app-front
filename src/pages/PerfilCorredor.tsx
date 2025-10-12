@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Users,
   ArrowLeft,
-  Upload,
   Plus,
   Award,
   Calendar,
@@ -25,7 +24,6 @@ import {
   Loader2,
   Save,
   Edit,
-  MapPin,
   Phone,
   Mail,
   IdCard,
@@ -35,15 +33,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getUserById, updateUser } from "@/lib/services/user.service";
 import { GetUserResponse } from "@/types/api";
-import { UserNatureEnum, UserRoleEnum } from "@/types/enums/api-enums";
-import { getNatureMap, getRoleMap } from "@/types/enums/enum-maps";
+import { UserRoleEnum } from "@/types/enums/api-enums";
+import { getRoleMap } from "@/types/enums/enum-maps";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Certifique-se que BRstates está importado corretamente
+} from "@/components/ui/select";
 import { BRstates } from "@/shared/br-states";
 
 const PerfilCorredor = () => {
