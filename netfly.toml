@@ -1,9 +1,10 @@
 [build]
-  command = "npm run build"
+  command = "yarn build"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
+  YARN_VERSION = "1.22.19"
 
 # ✅ Configurações para SPA (React Router)
 [[redirects]]
@@ -23,3 +24,7 @@
   for = "/assets/*"
   [headers.values]
     "Cache-Control" = "public, max-age=31536000, immutable"
+
+# ✅ Otimização para Yarn
+[build.settings]
+  command = "yarn build"
