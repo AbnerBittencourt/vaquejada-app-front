@@ -23,6 +23,7 @@ import {
   User,
   ArrowRight,
   AlertTriangle,
+  ImageOff,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -129,8 +130,7 @@ const EventoDetalhes = () => {
 
     try {
       setLoadingCategorias(true);
-      const token = localStorage.getItem("token");
-      const response = await getEventCategories(id, token);
+      const response = await getEventCategories(id);
       setCategorias(response.data || []);
     } catch (err) {
       console.error("Erro ao carregar categorias:", err);
@@ -453,40 +453,101 @@ const EventoDetalhes = () => {
       </header>
 
       <div className="container mx-auto px-4 mt-6 relative z-10">
-        {/* Event Header Card */}
+        {/* ✅ BANNER AO LADO DO NOME DO EVENTO - FORMATO PORTRAIT */}
         <Card className="mb-8 shadow-lg border-2 relative overflow-hidden">
-          {/* Background gradient */}
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 pointer-events-none"></div>
 
           <CardHeader className="pb-4 relative z-10">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex-1">
-                <CardTitle className="text-2xl md:text-3xl font-bold mb-3 text-foreground leading-tight">
-                  {evento.name}
-                </CardTitle>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-medium text-sm">
-                      {evento.city && evento.state
-                        ? `${evento.city} - ${evento.state}`
-                        : evento.address
-                        ? evento.address
-                        : "Local a definir"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-medium text-sm">
-                      {formatDate(evento.startAt)}
-                      {evento.endAt && <> até {formatDate(evento.endAt)}</>}
-                    </span>
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* ✅ BANNER EM FORMATO PORTRAIT (EM PÉ) */}
+              <div className="lg:w-48 lg:flex-shrink-0">
+                <div className="relative h-64 w-full overflow-hidden rounded-lg border-2 bg-muted">
+                  {evento.bannerUrl ? (
+                    <>
+                      <img
+                        src={evento.bannerUrl}
+                        alt={`Banner do evento ${evento.name}`}
+                        className="w-full h-full object-cover"
+                        loading="eager"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const fallback =
+                            target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.classList.remove("hidden");
+                        }}
+                      />
+                      {/* Fallback se a imagem não carregar */}
+                      <div className="hidden w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                        <div className="text-center">
+                          <ImageOff className="h-12 w-12 text-primary/40 mx-auto mb-2" />
+                          <p className="text-xs text-primary/60 font-medium">
+                            Banner não carregado
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // Placeholder quando não há banner
+                    <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
+                      <div className="text-center">
+                        <ImageOff className="h-12 w-12 text-primary/30 mx-auto mb-2" />
+                        <p className="text-xs text-primary/50 font-medium">
+                          Sem banner
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Badge de Status */}
+                  <div className="absolute top-2 right-2">
+                    <div
+                      className={`px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                        evento.purchaseClosedAt && !timeLeft.expired
+                          ? "bg-green-500/90 text-green-50 shadow-lg"
+                          : "bg-red-500/90 text-red-50 shadow-lg"
+                      }`}
+                    >
+                      {evento.purchaseClosedAt && !timeLeft.expired
+                        ? "Inscrições Abertas"
+                        : "Inscrições Encerradas"}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
-                <CountdownTimer />
+              {/* Informações do Evento */}
+              <div className="flex-1">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl md:text-3xl font-bold mb-3 text-foreground leading-tight">
+                      {evento.name}
+                    </CardTitle>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="font-medium text-sm">
+                          {evento.city && evento.state
+                            ? `${evento.city} - ${evento.state}`
+                            : evento.address
+                            ? evento.address
+                            : "Local a definir"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="font-medium text-sm">
+                          {formatDate(evento.startAt)}
+                          {evento.endAt && <> até {formatDate(evento.endAt)}</>}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
+                    <CountdownTimer />
+                  </div>
+                </div>
               </div>
             </div>
           </CardHeader>

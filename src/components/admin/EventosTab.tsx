@@ -15,9 +15,13 @@ import {
   Pen,
   Plus,
   Trash2,
+  Upload,
+  Image,
+  ImageOff,
+  X,
 } from "lucide-react";
 import { ListEventResponse } from "@/types/api";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { formatCurrency, formatDate } from "@/utils/format-data.util";
 import { EventStatusEnum } from "@/types/enums/api-enums";
 import { CriarEventoModal } from "../CriarEventoModal";
@@ -38,6 +42,8 @@ import {
   getEventCategories,
   updateEvent,
   updateEventCategory,
+  uploadEventBanner,
+  deleteEventBanner,
 } from "@/lib/services/event.service";
 import { CategoryNameEnum } from "@/types/enums/api-enums";
 import { listCategories } from "@/lib/services/category.service";
@@ -50,7 +56,6 @@ import {
 } from "../ui/select";
 import { BRstates } from "@/shared/br-states";
 import { CreateEventDto } from "@/types/dtos/event.dto";
-import { start } from "repl";
 
 interface EventosTabProps {
   eventos: ListEventResponse[];
@@ -105,6 +110,12 @@ interface EventFormData {
   state: string;
   description: string;
   isActive: boolean;
+  bannerUrl?: string;
+}
+
+interface SelectedImage {
+  file: File;
+  preview: string;
 }
 
 export const EventosTab: React.FC<EventosTabProps> = ({
@@ -136,6 +147,12 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     []
   );
   const [loadingEvent, setLoadingEvent] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(
+    null
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState<EventFormData>({
     name: "",
     prize: "",
@@ -147,6 +164,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     state: "",
     description: "",
     isActive: true,
+    bannerUrl: "",
   });
 
   const [categoriasDoEventoDisponiveis, setCategoriasDoEventoDisponiveis] =
@@ -155,8 +173,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
   React.useEffect(() => {
     const fetchCategoriasDoEventoDisponiveis = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await listCategories(token);
+        const response = await listCategories();
         if (response.data && Array.isArray(response.data)) {
           setCategoriasDoEventoDisponiveis(
             response.data.map((cat) => ({
@@ -200,6 +217,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       setLoadingEvent(true);
       setEditingEvent(evento);
       setIsEditModalOpen(true);
+      setSelectedImage(null);
 
       setFormData({
         name: evento.name || "",
@@ -218,10 +236,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         state: evento.state || "",
         description: evento.description || "",
         isActive: evento.isActive || false,
+        bannerUrl: evento.bannerUrl || "",
       });
 
-      const token = localStorage.getItem("token");
-      const response = await getEventCategories(evento.id, token);
+      const response = await getEventCategories(evento.id);
 
       if (response.data && Array.isArray(response.data)) {
         const categoriasDoEventoMapeadas = response.data.map((cat) => ({
@@ -256,6 +274,102 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       setCategoriasDoEvento([]);
     } finally {
       setLoadingEvent(false);
+    }
+  };
+
+  // Funções para manipulação do banner
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Erro",
+          description: "Por favor, selecione um arquivo de imagem válido",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validar tamanho do arquivo (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Erro",
+          description: "A imagem deve ter no máximo 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const preview = URL.createObjectURL(file);
+      setSelectedImage({ file, preview });
+    }
+  };
+
+  const removeSelectedImage = () => {
+    if (selectedImage?.preview) {
+      URL.revokeObjectURL(selectedImage.preview);
+    }
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    if (!editingEvent?.id) return;
+
+    try {
+      setUploadingImage(true);
+      await deleteEventBanner(editingEvent.id);
+
+      setFormData((prev) => ({ ...prev, bannerUrl: "" }));
+      toast({
+        title: "Sucesso",
+        description: "Banner removido com sucesso!",
+      });
+    } catch (err) {
+      console.error("Erro ao remover banner:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover o banner",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadBanner = async (): Promise<string | null> => {
+    if (!selectedImage || !editingEvent?.id) return null;
+
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append("banner", selectedImage.file);
+
+      const response = await uploadEventBanner(editingEvent.id, formData);
+
+      toast({
+        title: "Sucesso",
+        description: "Banner atualizado com sucesso!",
+      });
+
+      return response.url || null;
+    } catch (err) {
+      console.error("Erro ao fazer upload do banner:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível fazer upload do banner",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -311,9 +425,17 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
   const handleSaveEvent = async () => {
     try {
-      const token = localStorage.getItem("token");
+      let bannerUrl = formData.bannerUrl;
 
-      const udpatedData: CreateEventDto = {
+      // Upload do novo banner se houver imagem selecionada
+      if (selectedImage) {
+        const newBannerUrl = await uploadBanner();
+        if (newBannerUrl) {
+          bannerUrl = newBannerUrl;
+        }
+      }
+
+      const updatedData: CreateEventDto = {
         name: formData.name,
         startAt: formData.startAt,
         endAt: formData.endAt,
@@ -322,11 +444,13 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         city: formData.city,
         state: formData.state,
         description: formData.description,
+        bannerUrl: bannerUrl,
       };
 
-      await updateEvent(editingEvent!.id, udpatedData, token);
+      await updateEvent(editingEvent!.id, updatedData);
 
-      categoriasDoEvento.map(async (categoria) => {
+      // Processar categorias
+      for (const categoria of categoriasDoEvento) {
         const eventCategoryData = {
           eventId: editingEvent!.id,
           categoryId: categoria.categoryId,
@@ -340,11 +464,11 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         };
 
         if (categoria.id) {
-          await updateEventCategory(categoria.id, eventCategoryData, token);
+          await updateEventCategory(categoria.id, eventCategoryData);
         } else {
-          await createEventCategory(eventCategoryData, token);
+          await createEventCategory(eventCategoryData);
         }
-      });
+      }
 
       toast({
         title: "Sucesso",
@@ -354,6 +478,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       setIsEditModalOpen(false);
       setEditingEvent(null);
       setCategoriasDoEvento([]);
+      setSelectedImage(null);
       setFormData({
         name: "",
         prize: "",
@@ -365,7 +490,13 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         state: "",
         description: "",
         isActive: true,
+        bannerUrl: "",
       });
+
+      // Limpar o input de arquivo
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       console.error("Erro ao atualizar evento:", err);
       toast({
@@ -574,7 +705,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
               Editar Evento: {editingEvent?.name}
             </DialogTitle>
             <DialogDescription>
-              Atualize as informações do evento e gerencie as categoriasDoEvento
+              Atualize as informações do evento e gerencie as categorias
             </DialogDescription>
           </DialogHeader>
 
@@ -585,6 +716,153 @@ export const EventosTab: React.FC<EventosTabProps> = ({
             </div>
           ) : (
             <div className="space-y-6">
+              {/* ✅ SEÇÃO DE BANNER */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Banner do Evento</CardTitle>
+                  <DialogDescription>
+                    Atualize a imagem do banner do evento
+                  </DialogDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    {/* Preview do Banner Atual */}
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium mb-3 block">
+                        Banner Atual
+                      </Label>
+                      <div className="relative h-48 w-full md:w-64 overflow-hidden rounded-lg border-2 bg-muted">
+                        {formData.bannerUrl ? (
+                          <>
+                            <img
+                              src={formData.bannerUrl}
+                              alt={`Banner atual do evento ${formData.name}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {/* Badge indicando banner atual */}
+                            <div className="absolute top-2 left-2">
+                              <Badge variant="secondary" className="text-xs">
+                                Atual
+                              </Badge>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
+                            <div className="text-center">
+                              <ImageOff className="h-12 w-12 text-primary/30 mx-auto mb-2" />
+                              <p className="text-xs text-primary/50 font-medium">
+                                Sem banner
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Upload de Novo Banner */}
+                    {/* <div className="flex-1 space-y-4">
+                      <Label className="text-sm font-medium">
+                        Novo Banner (Opcional)
+                      </Label>
+
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageSelect}
+                        accept="image/*"
+                        className="hidden"
+                      />
+
+                      {selectedImage ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-green-600 flex items-center gap-2">
+                              <Image className="h-4 w-4" />
+                              Nova imagem selecionada
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={removeSelectedImage}
+                              className="h-8 w-8 p-0 hover:bg-destructive/10"
+                            >
+                              <X className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+
+                          <div className="relative h-32 w-full overflow-hidden rounded-lg border-2">
+                            <img
+                              src={selectedImage.preview}
+                              alt="Preview do novo banner"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          <p className="text-xs text-muted-foreground">
+                            {selectedImage.file.name} •
+                            {(selectedImage.file.size / 1024 / 1024).toFixed(2)}
+                            MB
+                          </p>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={removeSelectedImage}
+                            className="w-full"
+                          >
+                            Remover Nova Imagem
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={triggerFileInput}
+                          className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors group"
+                        >
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <Upload className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">
+                                Clique para selecionar novo banner
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                PNG, JPG, WEBP até 5MB
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg"
+                            >
+                              Selecionar Imagem
+                            </Button>
+                          </div>
+                        </div>
+                      )} */}
+
+                    {/* Opção para remover banner existente */}
+                    {/* {formData.bannerUrl && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveBanner}
+                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Remover Banner Atual
+                        </Button>
+                      )}
+                    </div> */}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Informações do Evento */}
               <Card>
                 <CardHeader>
                   <CardTitle>Informações do Evento</CardTitle>
@@ -727,10 +1005,11 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 </CardContent>
               </Card>
 
+              {/* Categorias do Evento */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>CategoriasDoEvento do Evento</CardTitle>
+                    <CardTitle>Categorias do Evento</CardTitle>
                     <Button onClick={addCategoria} className="gap-2">
                       <Plus className="h-4 w-4" />
                       Adicionar Categoria
@@ -738,250 +1017,186 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {categoriasDoEvento.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>Nenhuma categoria adicionada</p>
-                      <p className="text-sm">
-                        Adicione categoriasDoEvento para vender senhas
-                      </p>
-                    </div>
-                  ) : (
-                    categoriasDoEvento.map((categoria, index) => (
-                      <Card key={categoria.id || index} className="border-2">
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg">
-                              {getCategoriaDisplayName(categoria)} #{index + 1}
-                            </CardTitle>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeCategoria(index)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor={`category-${index}`}>
-                                Categoria
-                              </Label>
-                              <select
-                                id={`category-${index}`}
-                                value={
-                                  categoria.categoryId ||
-                                  categoria.category?.id ||
-                                  ""
-                                }
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "categoryId",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full rounded-lg border-2 px-3 py-2 bg-background"
-                              >
-                                <option value="">
-                                  Selecione uma categoria
-                                </option>
-                                {categoriasDoEventoDisponiveis.map((cat) => (
-                                  <option key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                  {categoriasDoEvento.map((categoria, index) => (
+                    <Card key={index} className="p-4 border-2">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="font-semibold">
+                            {getCategoriaDisplayName(categoria)}
+                          </h4>
+                          {categoria.currentRunners !== undefined && (
+                            <p className="text-sm text-muted-foreground">
+                              {categoria.currentRunners} /{" "}
+                              {categoria.maxRunners || 0} inscritos
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCategoria(index)}
+                          className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`price-${index}`}>
-                                Valor da Senha (R$)
-                              </Label>
-                              <Input
-                                id={`price-${index}`}
-                                type="number"
-                                value={categoria.price}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "price",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0.00"
-                                min="0"
-                                step="0.01"
-                                className="bg-background"
-                              />
-                            </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`category-${index}`}>Categoria</Label>
+                          <select
+                            id={`category-${index}`}
+                            value={categoria.categoryId}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "categoryId",
+                                e.target.value
+                              )
+                            }
+                            className="w-full rounded-lg border-2 px-3 py-2 bg-background"
+                          >
+                            <option value="">Selecione uma categoria</option>
+                            {categoriasDoEventoDisponiveis.map((cat) => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`maxRunners-${index}`}>
-                                Quantidade de Senhas
-                              </Label>
-                              <Input
-                                id={`maxRunners-${index}`}
-                                type="number"
-                                value={categoria.maxRunners}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "maxRunners",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0"
-                                min="1"
-                                className="bg-background"
-                              />
-                            </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`price-${index}`}>Preço (R$)</Label>
+                          <Input
+                            id={`price-${index}`}
+                            type="number"
+                            value={categoria.price}
+                            onChange={(e) =>
+                              updateCategoria(index, "price", e.target.value)
+                            }
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            className="bg-background"
+                          />
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`passwordLimit-${index}`}>
-                                Limite de Senhas
-                              </Label>
-                              <Input
-                                id={`passwordLimit-${index}`}
-                                type="number"
-                                value={categoria.passwordLimit}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "passwordLimit",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0"
-                                min="1"
-                                className="bg-background"
-                              />
-                            </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`maxRunners-${index}`}>
+                            Máximo de Participantes
+                          </Label>
+                          <Input
+                            id={`maxRunners-${index}`}
+                            type="number"
+                            value={categoria.maxRunners}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "maxRunners",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0"
+                            min="0"
+                            className="bg-background"
+                          />
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`initialPassword-${index}`}>
-                                Senha Inicial
-                              </Label>
-                              <Input
-                                id={`initialPassword-${index}`}
-                                type="number"
-                                value={categoria.initialPassword}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "initialPassword",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0"
-                                min="1"
-                                className="bg-background"
-                              />
-                            </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`passwordLimit-${index}`}>
+                            Limite de Senhas
+                          </Label>
+                          <Input
+                            id={`passwordLimit-${index}`}
+                            type="number"
+                            value={categoria.passwordLimit}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "passwordLimit",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0"
+                            min="0"
+                            className="bg-background"
+                          />
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`finalPassword-${index}`}>
-                                Senha Final
-                              </Label>
-                              <Input
-                                id={`finalPassword-${index}`}
-                                type="number"
-                                value={categoria.finalPassword}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "finalPassword",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0"
-                                min="1"
-                                className="bg-background"
-                              />
-                            </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`initialPassword-${index}`}>
+                            Senha Inicial
+                          </Label>
+                          <Input
+                            id={`initialPassword-${index}`}
+                            type="number"
+                            value={categoria.initialPassword}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "initialPassword",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0"
+                            min="0"
+                            className="bg-background"
+                          />
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`startAt-${index}`}>
-                                Início da Categoria
-                              </Label>
-                              <Input
-                                id={`startAt-${index}`}
-                                type="date"
-                                value={categoria.startAt}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "startAt",
-                                    e.target.value
-                                  )
-                                }
-                                className="bg-background"
-                              />
-                            </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`finalPassword-${index}`}>
+                            Senha Final
+                          </Label>
+                          <Input
+                            id={`finalPassword-${index}`}
+                            type="number"
+                            value={categoria.finalPassword}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "finalPassword",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0"
+                            min="0"
+                            className="bg-background"
+                          />
+                        </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor={`endAt-${index}`}>
-                                Fim da Categoria
-                              </Label>
-                              <Input
-                                id={`endAt-${index}`}
-                                type="date"
-                                value={categoria.endAt}
-                                onChange={(e) =>
-                                  updateCategoria(
-                                    index,
-                                    "endAt",
-                                    e.target.value
-                                  )
-                                }
-                                className="bg-background"
-                              />
-                            </div>
-                          </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`startAt-${index}`}>
+                            Início da Categoria
+                          </Label>
+                          <Input
+                            id={`startAt-${index}`}
+                            type="date"
+                            value={categoria.startAt}
+                            onChange={(e) =>
+                              updateCategoria(index, "startAt", e.target.value)
+                            }
+                            className="bg-background"
+                          />
+                        </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            {/* Informações adicionais para categoriasDoEvento existentes */}
-                            {categoria.id && (
-                              <>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`currentRunners-${index}`}>
-                                    Senhas Vendidas
-                                  </Label>
-                                  <Input
-                                    id={`currentRunners-${index}`}
-                                    type="number"
-                                    value={categoria.currentRunners || 0}
-                                    disabled
-                                    className="bg-muted"
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label htmlFor={`isActive-${index}`}>
-                                    Status
-                                  </Label>
-                                  <div className="flex items-center h-10">
-                                    <Badge
-                                      variant={
-                                        categoria.isActive
-                                          ? "default"
-                                          : "secondary"
-                                      }
-                                    >
-                                      {categoria.isActive ? "Ativa" : "Inativa"}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
+                        <div className="space-y-2">
+                          <Label htmlFor={`endAt-${index}`}>
+                            Término da Categoria
+                          </Label>
+                          <Input
+                            id={`endAt-${index}`}
+                            type="date"
+                            value={categoria.endAt}
+                            onChange={(e) =>
+                              updateCategoria(index, "endAt", e.target.value)
+                            }
+                            className="bg-background"
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </CardContent>
               </Card>
 
@@ -992,9 +1207,22 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 >
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveEvent} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Salvar Alterações
+                <Button
+                  onClick={handleSaveEvent}
+                  className="gap-2"
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Enviando imagem...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Salvar Alterações
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
