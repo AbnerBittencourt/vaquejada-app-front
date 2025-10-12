@@ -247,3 +247,18 @@
     box-shadow: 0 0 10px hsl(45 100% 50% / 0.3);
   }
 }
+
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+/* Ou altura fixa landscape */
+.h-40 {
+  /* 160px - bom para cards */
+  height: 10rem;
+}
+
+.h-52 {
+  /* 208px - um pouco mais alto */
+  height: 13rem;
+}
