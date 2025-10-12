@@ -14,3 +14,12 @@ export class CreateEventDto {
   isPublic?: boolean;
   organizerId?: string;
 }
+
+export interface UploadBannerResponse {
+  url: string;
+  publicId: string;
+  format: string;
+  width: number;
+  height: number;
+  bytes: number;
+}

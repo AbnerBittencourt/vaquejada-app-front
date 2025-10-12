@@ -78,6 +78,7 @@ export type ListEventResponse = {
   status: EventStatusEnum;
   description: string;
   address: string;
+  bannerUrl: string;
   prize: string;
   city: string;
   state: string;

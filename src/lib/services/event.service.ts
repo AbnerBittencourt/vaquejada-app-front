@@ -107,12 +107,7 @@ export async function deleteEventCategory(
   eventCategoryId: string
 ) {
   try {
-    const token = localStorage.getItem("token");
-    await api.delete(`/event-categories/${eventCategoryId}/${eventId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    await api.delete(`/event-categories/${eventCategoryId}/${eventId}`);
   } catch (error) {
     throw new Error("Erro ao deletar categoria do evento");
   }
