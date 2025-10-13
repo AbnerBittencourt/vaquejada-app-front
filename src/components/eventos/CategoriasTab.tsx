@@ -77,7 +77,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         eventoId,
         selectedCategory.category.id
       );
-      console.log("Passwords carregadas:", response);
       setPasswords(response || []);
 
       // Limpar seleções quando as senhas são recarregadas
@@ -325,20 +324,18 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
 
     try {
-      console.log("Enviando para compra:", {
-        eventId: eventoId,
-        categoryId: selectedCategory?.category.id,
-        passwordIds: selectedPasswordIds,
-        selectedNumbers: selectedNumbers,
-      });
+      // console.log("Enviando para compra:", {
+      //   eventId: eventoId,
+      //   categoryId: selectedCategory?.category.id,
+      //   passwordIds: selectedPasswordIds,
+      //   selectedNumbers: selectedNumbers,
+      // });
 
       const result = await purchasePasswords({
         eventId: eventoId,
         categoryId: selectedCategory?.category.id || "",
         passwordIds: selectedPasswordIds,
       });
-
-      console.log("Resposta da compra:", result);
 
       toast({
         title: "Sucesso!",
