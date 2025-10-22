@@ -1,4 +1,5 @@
 import { api } from "@/api/api-connection";
+import { Runner } from "@/types/api";
 import { CreateEventDto, UploadBannerResponse } from "@/types/dtos/event.dto";
 
 export async function listEvents() {
@@ -140,4 +141,21 @@ export const deleteEventBanner = async (eventId: string) => {
     console.error("Erro ao deletar o banner:", error);
     throw error;
   }
+};
+
+export const getEventRunners = async (eventId: string): Promise<Runner[]> => {
+  const response = await api.get(`/events/${eventId}/runners`);
+  return response.data;
+};
+
+export const submitVote = async (
+  eventId: string,
+  runnerId: string,
+  approved: boolean
+): Promise<void> => {
+  const response = await api.post(`/events/${eventId}/vote`, {
+    runnerId,
+    approved,
+  });
+  return response.data;
 };

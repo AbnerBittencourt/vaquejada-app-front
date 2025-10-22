@@ -83,6 +83,14 @@ const Index = () => {
                 Meus Ingressos
               </Link>
             )}
+            {isAuthenticated && (
+              <Link
+                to="/juiz"
+                className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+              >
+                Juiz
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-3">

@@ -162,3 +162,18 @@ export type ListSubscriptionResponse = {
   passwords: PasswordResponse[];
   passwordPrice: string;
 };
+
+export interface Judge {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface Runner {
+  id: string;
+  name: string;
+  number: string;
+  category: string;
+  hasVoted?: boolean;
+  vote?: boolean | null;
+}

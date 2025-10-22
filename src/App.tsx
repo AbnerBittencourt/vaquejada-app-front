@@ -15,6 +15,8 @@ import PerfilAdmin from "./pages/PerfilAdmin";
 import ComprarSenhas from "./pages/ComprarSenhas";
 import MeusIngressos from "./pages/MeusIngressos";
 import NotFound from "./pages/NotFound";
+import JudgePage from "./pages/JudgePage";
+import { ProtectedRoute } from "./pages/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,7 @@ const App = () => (
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/perfil" element={<PerfilAdmin />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/juiz" element={<JudgePage />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
