@@ -19,11 +19,14 @@ import {
   Image,
   ImageOff,
   X,
+  Users,
+  Mic,
+  Gavel,
 } from "lucide-react";
-import { ListEventResponse } from "@/types/api";
+import { GetUserResponse, ListEventResponse } from "@/types/api";
 import React, { useState, useRef } from "react";
 import { formatCurrency, formatDate } from "@/utils/format-data.util";
-import { EventStatusEnum } from "@/types/enums/api-enums";
+import { EventStatusEnum, UserRoleEnum } from "@/types/enums/api-enums";
 import { CriarEventoModal } from "../CriarEventoModal";
 import { getCategoryNameMap, getEventStatusMap } from "@/types/enums/enum-maps";
 import {
@@ -56,6 +59,12 @@ import {
 } from "../ui/select";
 import { BRstates } from "@/shared/br-states";
 import { CreateEventDto } from "@/types/dtos/event.dto";
+import { listUsers } from "@/lib/services/user.service";
+import {
+  addJudgeToEvent,
+  addSpeakerToEvent,
+  listStaffByEvent,
+} from "@/lib/services/staff.service";
 
 interface EventosTabProps {
   eventos: ListEventResponse[];
@@ -118,6 +127,23 @@ interface SelectedImage {
   preview: string;
 }
 
+interface EventStaff {
+  userId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  eventId: string;
+  role: UserRoleEnum;
+}
+
+interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRoleEnum;
+}
+
 export const EventosTab: React.FC<EventosTabProps> = ({
   eventos,
   loading,
@@ -152,6 +178,12 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     null
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
+  const [availableJudges, setAvailableJudges] = useState<StaffUser[]>([]);
+  const [availablespeakers, setAvailablespeakers] = useState<StaffUser[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [staffSectionOpen, setStaffSectionOpen] = useState(false);
 
   const [formData, setFormData] = useState<EventFormData>({
     name: "",
@@ -189,6 +221,134 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     };
     fetchCategoriasDoEventoDisponiveis();
   }, []);
+
+  const loadEventStaff = async (eventId: string) => {
+    if (!eventId) return;
+
+    try {
+      setLoadingStaff(true);
+      const result = await listStaffByEvent(eventId);
+
+      const buildEventStaff = (user: GetUserResponse): EventStaff => ({
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? "",
+        role: user.role,
+        eventId: eventId,
+      });
+
+      const staffList: EventStaff[] = [
+        ...(Array.isArray(result.judges)
+          ? result.judges.map(buildEventStaff)
+          : []),
+        ...(Array.isArray(result.speakers)
+          ? result.speakers.map(buildEventStaff)
+          : []),
+      ];
+
+      setEventStaff(staffList);
+    } catch (err) {
+      console.error("Erro ao carregar staff:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a equipe do evento",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  const loadAvailableStaff = async () => {
+    try {
+      const [judges, speakers] = await Promise.all([
+        listUsers({ role: UserRoleEnum.JUDGE }),
+        listUsers({ role: UserRoleEnum.SPEAKER }),
+      ]);
+
+      const buildStaffUser = (user: GetUserResponse): StaffUser => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? "",
+        role: user.role,
+      });
+
+      const judgesList: StaffUser[] = Array.isArray(judges)
+        ? judges.map(buildStaffUser)
+        : [];
+      const speakersList: StaffUser[] = Array.isArray(speakers)
+        ? speakers.map(buildStaffUser)
+        : [];
+
+      setAvailableJudges(judgesList);
+      setAvailablespeakers(speakersList);
+    } catch (err) {
+      console.error("Erro ao carregar staff disponível:", err);
+    }
+  };
+
+  const handleAddStaff = async (userId: string, role: UserRoleEnum) => {
+    if (!editingEvent) return;
+
+    try {
+      const user =
+        role === UserRoleEnum.JUDGE
+          ? availableJudges.find((j) => j.id === userId)
+          : availablespeakers.find((a) => a.id === userId);
+
+      if (!user) return;
+
+      if (role === UserRoleEnum.JUDGE) {
+        addJudgeToEvent(editingEvent.id, userId);
+      } else {
+        addSpeakerToEvent(editingEvent.id, userId);
+      }
+
+      const newStaff: EventStaff = {
+        userId: user.id,
+        eventId: editingEvent.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        role,
+      };
+
+      setEventStaff((prev) => [...prev, newStaff]);
+
+      toast({
+        title: "Sucesso",
+        description: `${
+          role === UserRoleEnum.JUDGE ? "Juiz" : "Locutor"
+        } adicionado com sucesso!`,
+      });
+    } catch (err) {
+      console.error("Erro ao adicionar staff:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar à equipe",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveStaff = async (staffId: string) => {
+    try {
+      setEventStaff((prev) => prev.filter((staff) => staff.userId !== staffId));
+      toast({
+        title: "Sucesso",
+        description: "Membro removido da equipe!",
+      });
+    } catch (err) {
+      console.error("Erro ao remover staff:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover da equipe",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusColor = (status: EventStatusEnum) => {
     switch (status) {
@@ -264,6 +424,9 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       } else {
         setCategoriasDoEvento([]);
       }
+
+      await loadEventStaff(evento.id);
+      await loadAvailableStaff();
     } catch (err) {
       console.error("Erro ao carregar evento:", err);
       toast({
@@ -277,7 +440,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     }
   };
 
-  // Funções para manipulação do banner
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
@@ -427,7 +589,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     try {
       let bannerUrl = formData.bannerUrl;
 
-      // Upload do novo banner se houver imagem selecionada
       if (selectedImage) {
         const newBannerUrl = await uploadBanner();
         if (newBannerUrl) {
@@ -449,7 +610,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
       await updateEvent(editingEvent!.id, updatedData);
 
-      // Processar categorias
       for (const categoria of categoriasDoEvento) {
         const eventCategoryData = {
           eventId: editingEvent!.id,
@@ -470,6 +630,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         }
       }
 
+      console.log("Staff a ser salvo:", eventStaff);
+
       toast({
         title: "Sucesso",
         description: "Evento atualizado com sucesso!",
@@ -479,6 +641,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       setEditingEvent(null);
       setCategoriasDoEvento([]);
       setSelectedImage(null);
+      setEventStaff([]);
       setFormData({
         name: "",
         prize: "",
@@ -507,7 +670,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
     }
   };
 
-  // Função para obter o nome amigável da categoria
   const getCategoriaDisplayName = (categoria: CategoriaForm) => {
     if (categoria.category?.name) {
       return (
@@ -760,7 +922,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                     </div>
 
                     {/* Upload de Novo Banner */}
-                    {/* <div className="flex-1 space-y-4">
+                    <div className="flex-1 space-y-4">
                       <Label className="text-sm font-medium">
                         Novo Banner (Opcional)
                       </Label>
@@ -842,10 +1004,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             </Button>
                           </div>
                         </div>
-                      )} */}
+                      )}
 
-                    {/* Opção para remover banner existente */}
-                    {/* {formData.bannerUrl && (
+                      {/* Opção para remover banner existente */}
+                      {formData.bannerUrl && (
                         <Button
                           type="button"
                           variant="outline"
@@ -857,7 +1019,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                           Remover Banner Atual
                         </Button>
                       )}
-                    </div> */}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1198,6 +1360,210 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                     </Card>
                   ))}
                 </CardContent>
+              </Card>
+
+              {/* ✅ NOVA SEÇÃO: Juízes e Locutores */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Equipe do Evento
+                    </CardTitle>
+                    <Button
+                      onClick={() => setStaffSectionOpen(!staffSectionOpen)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {staffSectionOpen ? "Ocultar" : "Mostrar"} Equipe
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Adicione juízes e locutores para este evento
+                  </CardDescription>
+                </CardHeader>
+
+                {staffSectionOpen && (
+                  <CardContent className="space-y-6">
+                    {loadingStaff ? (
+                      <div className="text-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Carregando equipe...
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Juízes */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-base font-semibold flex items-center gap-2">
+                              <Gavel className="h-4 w-4" />
+                              Juízes
+                            </Label>
+                            <Select
+                              value=""
+                              onValueChange={(userId) => {
+                                if (userId) {
+                                  handleAddStaff(userId, UserRoleEnum.JUDGE);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-64">
+                                <SelectValue placeholder="Selecionar juiz..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableJudges
+                                  .filter(
+                                    (judge) =>
+                                      !eventStaff.some(
+                                        (staff) =>
+                                          staff.userId === judge.id &&
+                                          staff.role === UserRoleEnum.JUDGE
+                                      )
+                                  )
+                                  .map((judge) => (
+                                    <SelectItem key={judge.id} value={judge.id}>
+                                      {judge.name} - {judge.email}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {eventStaff
+                              .filter(
+                                (staff) => staff.role === UserRoleEnum.JUDGE
+                              )
+                              .map((judge) => (
+                                <Card key={judge.userId} className="p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium">
+                                        {judge.name}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {judge.email}
+                                      </p>
+                                      {judge.phone && (
+                                        <p className="text-sm text-muted-foreground">
+                                          {judge.phone}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleRemoveStaff(judge.userId)
+                                      }
+                                      className="text-destructive hover:text-destructive/80"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </Card>
+                              ))}
+                            {eventStaff.filter(
+                              (staff) => staff.role === UserRoleEnum.JUDGE
+                            ).length === 0 && (
+                              <div className="col-span-2 text-center py-4 text-muted-foreground">
+                                <Gavel className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                <p>Nenhum juiz adicionado</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Locutores */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-base font-semibold flex items-center gap-2">
+                              <Mic className="h-4 w-4" />
+                              Locutores
+                            </Label>
+                            <Select
+                              value=""
+                              onValueChange={(userId) => {
+                                if (userId) {
+                                  handleAddStaff(userId, UserRoleEnum.SPEAKER);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-64">
+                                <SelectValue placeholder="Selecionar locutor..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availablespeakers
+                                  .filter(
+                                    (speaker) =>
+                                      !eventStaff.some(
+                                        (staff) =>
+                                          staff.userId === speaker.id &&
+                                          staff.role === UserRoleEnum.SPEAKER
+                                      )
+                                  )
+                                  .map((speaker) => (
+                                    <SelectItem
+                                      key={speaker.id}
+                                      value={speaker.id}
+                                    >
+                                      {speaker.name} - {speaker.email}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {eventStaff
+                              .filter(
+                                (staff) => staff.role === UserRoleEnum.SPEAKER
+                              )
+                              .map((speaker) => (
+                                <Card key={speaker.userId} className="p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium">
+                                        {speaker.name}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {speaker.email}
+                                      </p>
+                                      {speaker.phone && (
+                                        <p className="text-sm text-muted-foreground">
+                                          {speaker.phone}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleRemoveStaff(speaker.userId)
+                                      }
+                                      className="text-destructive hover:text-destructive/80"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </Card>
+                              ))}
+                            {eventStaff.filter(
+                              (staff) => staff.role === UserRoleEnum.SPEAKER
+                            ).length === 0 && (
+                              <div className="col-span-2 text-center py-4 text-muted-foreground">
+                                <Mic className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                <p>Nenhum locutor adicionado</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                )}
               </Card>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

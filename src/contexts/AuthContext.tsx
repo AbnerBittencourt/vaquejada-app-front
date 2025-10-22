@@ -1,6 +1,6 @@
 import { userLogin } from "@/lib/services/login.service";
 import { createUser, getMe } from "@/lib/services/user.service";
-import { CreateUserResponse, GetUserResponse } from "@/types/api";
+import { GetUserResponse } from "@/types/api";
 import { UserRoleEnum } from "@/types/enums/api-enums";
 import { createContext, useContext, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem("token", response.access_token);
 
-    const userData: GetUserResponse = await getMe();
+    const userData = await getMe();
 
     localStorage.setItem("userId", userData.id);
     setUser(userData);

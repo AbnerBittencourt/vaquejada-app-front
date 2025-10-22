@@ -79,7 +79,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       );
       setPasswords(response || []);
 
-      // Limpar seleções quando as senhas são recarregadas
       setSelectedNumbers([]);
       setSelectedPasswordIds([]);
     } catch (err) {
@@ -94,12 +93,10 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
   };
 
-  // Sincronizar selectedNumbers e selectedPasswordIds
   useEffect(() => {
     if (selectedNumbers.length === 0 && selectedPasswordIds.length === 0)
       return;
 
-    // Se houver inconsistência, corrigir
     if (selectedNumbers.length !== selectedPasswordIds.length) {
       console.warn("Inconsistência detectada, recalculando IDs...");
 
@@ -113,7 +110,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       if (recalculatedIds.length === selectedNumbers.length) {
         setSelectedPasswordIds(recalculatedIds);
       } else {
-        // Se não conseguir recalcular, limpar tudo
         setSelectedNumbers([]);
         setSelectedPasswordIds([]);
       }
@@ -312,7 +308,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       return;
     }
 
-    // Verificar se há inconsistência
     if (selectedNumbers.length !== selectedPasswordIds.length) {
       toast({
         title: "Erro",
@@ -324,14 +319,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
 
     try {
-      // console.log("Enviando para compra:", {
-      //   eventId: eventoId,
-      //   categoryId: selectedCategory?.category.id,
-      //   passwordIds: selectedPasswordIds,
-      //   selectedNumbers: selectedNumbers,
-      // });
-
-      const result = await purchasePasswords({
+      await purchasePasswords({
         eventId: eventoId,
         categoryId: selectedCategory?.category.id || "",
         passwordIds: selectedPasswordIds,
@@ -342,12 +330,10 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         description: "Compra realizada com sucesso!",
       });
 
-      // Limpar seleções após compra bem-sucedida
       setSelectedNumbers([]);
       setSelectedPasswordIds([]);
       setAcceptedTerms(false);
 
-      // Recarregar as senhas para atualizar o status
       carregarPasswords();
     } catch (error) {
       console.error("Erro na compra:", error);
