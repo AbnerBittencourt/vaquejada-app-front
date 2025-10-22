@@ -5,7 +5,6 @@ export async function userLogin(email: string, password: string) {
     const response = await api.post("/auth/login", { email, password });
     return response.data;
   } catch (error) {
-    console.log(error);
     throw new Error("Login falhou");
   }
 }

@@ -38,34 +38,27 @@ import { formatPrice } from "@/utils/format-data.util";
 import { getMe } from "@/lib/services/user.service";
 import { listUsers } from "@/lib/services/user.service";
 import { useAuth } from "@/contexts/AuthContext";
-import { getCategoryNameMap } from "@/types/enums/enum-maps";
-import { CriarEventoModal } from "@/components/CriarEventoModal";
 
 const AdminDashboard = () => {
-  // Estados base
   const [usuarios, setUsuarios] = useState<GetUserResponse[]>([]);
   const [eventos, setEventos] = useState<ListEventResponse[]>([]);
   const [inscricoes, setInscricoes] = useState<ListSubscriptionResponse[]>([]);
   const [usuario, setUsuario] = useState<GetUserResponse | null>(null);
 
-  // Estados de loading
   const [loadingUsuarios, setLoadingUsuarios] = useState(true);
   const [loadingEventos, setLoadingEventos] = useState(true);
   const [loadingInscricoes, setLoadingInscricoes] = useState(true);
   const [loadingUsuario, setLoadingUsuario] = useState(true);
 
-  // Estados para modais
   const [inscricaoSelecionada, setInscricaoSelecionada] =
     useState<ListSubscriptionResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // FILTROS USUÁRIOS - ATUALIZADO COM ROLE
   const [usuariosFiltro, setUsuariosFiltro] = useState("");
   const [usuariosFiltroRole, setUsuariosFiltroRole] = useState<string>("todos");
   const [usuariosPage, setUsuariosPage] = useState(1);
   const usuariosPerPage = 10;
 
-  // FILTROS EVENTOS - ATUALIZADO COM STATUS, CIDADE, ESTADO
   const [eventosFiltro, setEventosFiltro] = useState("");
   const [eventosFiltroStatus, setEventosFiltroStatus] =
     useState<string>("todos");
@@ -76,13 +69,11 @@ const AdminDashboard = () => {
   const [eventosPage, setEventosPage] = useState(1);
   const eventosPerPage = 10;
 
-  // Filtros inscrições
   const [filtroEvento, setFiltroEvento] = useState<string>("todos");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [buscaNome, setBuscaNome] = useState<string>("");
 
-  // Estatísticas
   const [stats, setStats] = useState({
     totalEventos: 0,
     totalInscricoes: 0,
@@ -92,7 +83,6 @@ const AdminDashboard = () => {
 
   const { user, logout } = useAuth();
 
-  // Efeitos para resetar paginação quando filtros mudam - ATUALIZADOS
   useEffect(() => {
     setUsuariosPage(1);
   }, [usuariosFiltro, usuariosFiltroRole]);
@@ -106,12 +96,10 @@ const AdminDashboard = () => {
     eventosFiltroEstado,
   ]);
 
-  // Carregar dados iniciais
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Calcular estatísticas quando eventos ou inscrições mudam
   useEffect(() => {
     calcularEstatisticas();
   }, [eventos, inscricoes]);
@@ -142,7 +130,7 @@ const AdminDashboard = () => {
     try {
       setLoadingUsuario(true);
       const response = await getMe();
-      setUsuario(response.data);
+      setUsuario(response);
     } catch (err) {
       console.error("Erro ao carregar usuário:", err);
       setUsuario(null);
@@ -202,7 +190,6 @@ const AdminDashboard = () => {
     });
   };
 
-  // FILTROS USUÁRIOS - ATUALIZADO COM ROLE
   const usuariosFiltrados = usuarios.filter((u) => {
     const matchNomeEmail =
       u.name?.toLowerCase().includes(usuariosFiltro.toLowerCase()) ||
@@ -224,10 +211,8 @@ const AdminDashboard = () => {
     usuariosPage * usuariosPerPage
   );
 
-  // Obter roles únicos para filtro
   const rolesUnicos = [...new Set(usuarios.map((u) => u.role).filter(Boolean))];
 
-  // FILTROS EVENTOS - ATUALIZADO COM STATUS, CIDADE, ESTADO
   const eventosFiltrados = eventos.filter((e) => {
     const matchNome = e.name
       ?.toLowerCase()
@@ -252,7 +237,6 @@ const AdminDashboard = () => {
     eventosPage * eventosPerPage
   );
 
-  // Obter cidades, estados e status únicos para filtros
   const cidadesUnicas = [
     ...new Set(eventos.map((e) => e.city).filter(Boolean)),
   ];
@@ -263,7 +247,6 @@ const AdminDashboard = () => {
     ...new Set(eventos.map((e) => e.status).filter(Boolean)),
   ];
 
-  // Filtros para inscrições
   const inscricoesFiltradas = inscricoes.filter((inscricao) => {
     const matchEvento =
       filtroEvento === "todos" ||
@@ -289,12 +272,6 @@ const AdminDashboard = () => {
     setModalOpen(true);
   };
 
-  // Obter categorias únicas para filtro
-  const categoriasUnicas = [
-    ...new Set(inscricoes.map((insc) => insc.category?.name).filter(Boolean)),
-  ];
-
-  // Calcular financeiro por evento
   const financeiroPorEvento = eventos.map((evento) => {
     const inscricoesEvento = inscricoes.filter(
       (insc) => insc.event?.id.toString() === evento.id?.toString()
