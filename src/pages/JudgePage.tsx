@@ -28,55 +28,76 @@ import {
   Award,
   CheckCircle,
   XCircle,
+  Key,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { ListEventResponse } from "@/types/api";
-import {
-  listEvents,
-  getEventRunners,
-  submitVote,
-} from "@/lib/services/event.service";
 import { formatDate } from "@/utils/format-data.util";
 import { UserRoleEnum } from "@/types/enums/api-enums";
+import { listJudgeEvents } from "@/lib/services/staff.service";
 
-interface Runner {
+interface Password {
   id: string;
-  name: string;
-  number: string;
-  category: string;
+  number: number;
+  status: string;
   hasVoted?: boolean;
   vote?: boolean | null;
 }
 
+interface Subscription {
+  id: string;
+  createdAt: string;
+  status: string;
+  passwords: Password[];
+}
+
+interface Runner {
+  id: string;
+  name: string;
+  subscriptions: Subscription[];
+}
+
+interface JudgeEvent {
+  id: string;
+  name: string;
+  description: string;
+  startAt: string;
+  endAt: string;
+  location: string;
+  status: string;
+  isActive: boolean;
+  bannerUrl: string;
+  judges: Array<{
+    id: string;
+    name: string;
+  }>;
+  runners: Runner[];
+}
+
+interface JudgeEventsResponse {
+  events: JudgeEvent[];
+  total: number;
+}
+
 const JudgePage = () => {
   const { user, logout, isAuthenticated } = useAuth();
-  const [events, setEvents] = useState<ListEventResponse[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<ListEventResponse | null>(
-    null
-  );
-  const [runners, setRunners] = useState<Runner[]>([]);
+  const [events, setEvents] = useState<JudgeEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<JudgeEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingRunners, setLoadingRunners] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [submittingVote, setSubmittingVote] = useState<string | null>(null);
 
-  // Verificar se o usuário é juiz
   const isJudge = user?.role === UserRoleEnum.JUDGE;
 
   useEffect(() => {
     async function fetchJudgeEvents() {
-      if (!isJudge) return;
+      if (!isJudge || !user?.id) return;
 
       try {
-        const response = await listEvents();
-        // Filtrar apenas eventos onde o usuário é juiz
-        const judgeEvents =
-          response.data?.filter((event) =>
-            event.judges?.some((judge) => judge.id === user?.id)
-          ) ?? [];
-        setEvents(judgeEvents);
+        const response: JudgeEventsResponse = await listJudgeEvents(user.id);
+        console.log("Eventos do juiz:", response);
+        setEvents(response.events || []);
       } catch (err) {
         console.error("Erro ao carregar eventos do juiz:", err);
         setEvents([]);
@@ -87,36 +108,59 @@ const JudgePage = () => {
     fetchJudgeEvents();
   }, [isJudge, user?.id]);
 
-  const handleEventSelect = async (event: ListEventResponse) => {
+  const handleEventSelect = (event: JudgeEvent) => {
     setSelectedEvent(event);
-    setLoadingRunners(true);
-
-    try {
-      const runnersResponse = await getEventRunners(event.id);
-      setRunners(runnersResponse ?? []);
-    } catch (err) {
-      console.error("Erro ao carregar corredores:", err);
-      setRunners([]);
-    } finally {
-      setLoadingRunners(false);
-    }
   };
 
-  const handleVote = async (runnerId: string, approved: boolean) => {
+  const handleVote = async (passwordId: string, approved: boolean) => {
     if (!selectedEvent) return;
 
-    setSubmittingVote(runnerId);
+    setSubmittingVote(passwordId);
 
     try {
-      await submitVote(selectedEvent.id, runnerId, approved);
+      // TODO: Implementar serviço de votação para senhas específicas
+      // await submitPasswordVote(selectedEvent.id, passwordId, approved);
 
       // Atualizar estado local
-      setRunners((prev) =>
-        prev.map((runner) =>
-          runner.id === runnerId
-            ? { ...runner, hasVoted: true, vote: approved }
-            : runner
+      setEvents((prevEvents) =>
+        prevEvents.map((event) =>
+          event.id === selectedEvent.id
+            ? {
+                ...event,
+                runners: event.runners.map((runner) => ({
+                  ...runner,
+                  subscriptions: runner.subscriptions.map((sub) => ({
+                    ...sub,
+                    passwords: sub.passwords.map((password) =>
+                      password.id === passwordId
+                        ? { ...password, hasVoted: true, vote: approved }
+                        : password
+                    ),
+                  })),
+                })),
+              }
+            : event
         )
+      );
+
+      // Atualizar evento selecionado
+      setSelectedEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              runners: prev.runners.map((runner) => ({
+                ...runner,
+                subscriptions: runner.subscriptions.map((sub) => ({
+                  ...sub,
+                  passwords: sub.passwords.map((password) =>
+                    password.id === passwordId
+                      ? { ...password, hasVoted: true, vote: approved }
+                      : password
+                  ),
+                })),
+              })),
+            }
+          : null
       );
     } catch (err) {
       console.error("Erro ao enviar voto:", err);
@@ -126,17 +170,60 @@ const JudgePage = () => {
     }
   };
 
-  const filteredEvents = events.filter(
-    (event) =>
-      event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.city?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Extrair cidade e estado da localização
+  const getLocationInfo = (location: string) => {
+    if (!location) return { city: "", state: "" };
 
-  const filteredRunners = runners.filter(
-    (runner) =>
-      runner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      runner.number.includes(searchTerm)
-  );
+    const parts = location.split(",");
+    if (parts.length >= 2) {
+      const cityStatePart = parts[parts.length - 1].trim();
+      const cityStateMatch = cityStatePart.match(/([^-]+)-([A-Z]{2})/);
+
+      if (cityStateMatch) {
+        return {
+          city: cityStateMatch[1].trim(),
+          state: cityStateMatch[2].trim(),
+        };
+      }
+    }
+
+    return { city: location, state: "" };
+  };
+
+  // Obter todas as senhas de um runner
+  const getAllPasswordsFromRunner = (runner: Runner): Password[] => {
+    return runner.subscriptions.flatMap((sub) => sub.passwords);
+  };
+
+  // Obter estatísticas de votação
+  const getVotingStats = () => {
+    if (!selectedEvent) return { total: 0, voted: 0 };
+
+    let totalPasswords = 0;
+    let votedPasswords = 0;
+
+    selectedEvent.runners.forEach((runner) => {
+      const passwords = getAllPasswordsFromRunner(runner);
+      totalPasswords += passwords.length;
+      votedPasswords += passwords.filter((p) => p.hasVoted).length;
+    });
+
+    return { total: totalPasswords, voted: votedPasswords };
+  };
+
+  const filteredEvents = events.filter((event) => {
+    const locationInfo = getLocationInfo(event.location);
+    return (
+      event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      locationInfo.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      locationInfo.state.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  const filteredRunners =
+    selectedEvent?.runners.filter((runner) =>
+      runner.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
   // Se não for juiz, mostrar mensagem de acesso negado
   if (!isJudge) {
@@ -228,7 +315,7 @@ const JudgePage = () => {
                 Meus Eventos como Juiz
               </h1>
               <p className="text-lg text-muted-foreground">
-                Selecione um evento para começar a avaliação
+                Selecione um evento para começar a avaliação das senhas
               </p>
             </div>
 
@@ -265,57 +352,88 @@ const JudgePage = () => {
               </div>
             ) : filteredEvents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredEvents.map((event) => (
-                  <Card
-                    key={event.id}
-                    className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
-                    onClick={() => handleEventSelect(event)}
-                  >
-                    <div className="relative h-48 overflow-hidden bg-muted">
-                      {event.bannerUrl ? (
-                        <img
-                          src={event.bannerUrl}
-                          alt={`Banner do evento ${event.name}`}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
-                          <Award className="h-12 w-12 text-primary/30" />
-                        </div>
-                      )}
-                    </div>
+                {filteredEvents.map((event) => {
+                  const locationInfo = getLocationInfo(event.location);
+                  const totalPasswords = event.runners.reduce(
+                    (total, runner) =>
+                      total + getAllPasswordsFromRunner(runner).length,
+                    0
+                  );
 
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Award className="h-5 w-5 text-primary" />
-                        {event.name}
-                      </CardTitle>
-                      <CardDescription className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        {event.city && event.state
-                          ? `${event.city}, ${event.state}`
-                          : "Localização não informada"}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          {formatDate(event.startAt)} -{" "}
-                          {formatDate(event.endAt)}
-                        </span>
+                  return (
+                    <Card
+                      key={event.id}
+                      className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
+                      onClick={() => handleEventSelect(event)}
+                    >
+                      <div className="relative h-48 overflow-hidden bg-muted">
+                        {event.bannerUrl ? (
+                          <img
+                            src={event.bannerUrl}
+                            alt={`Banner do evento ${event.name}`}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
+                            <Award className="h-12 w-12 text-primary/30" />
+                          </div>
+                        )}
                       </div>
-                    </CardContent>
 
-                    <CardFooter>
-                      <Button className="w-full group/btn">
-                        <span>Avaliar Corredores</span>
-                        <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Award className="h-5 w-5 text-primary" />
+                          {event.name}
+                        </CardTitle>
+                        <CardDescription className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          {locationInfo.city && locationInfo.state
+                            ? `${locationInfo.city}, ${locationInfo.state}`
+                            : event.location || "Localização não informada"}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {formatDate(event.startAt)} -{" "}
+                            {formatDate(event.endAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                          <Key className="h-4 w-4" />
+                          <span>{totalPasswords} senhas para avaliar</span>
+                        </div>
+                        <div className="mt-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                              event.status === "scheduled"
+                                ? "bg-blue-100 text-blue-800"
+                                : event.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : event.status === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {event.status === "scheduled" && "Agendado"}
+                            {event.status === "active" && "Ativo"}
+                            {event.status === "cancelled" && "Cancelado"}
+                            {event.status || "Desconhecido"}
+                          </span>
+                        </div>
+                      </CardContent>
+
+                      <CardFooter>
+                        <Button className="w-full group/btn">
+                          <span>Avaliar Senhas</span>
+                          <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-16">
@@ -332,7 +450,7 @@ const JudgePage = () => {
             )}
           </div>
         ) : (
-          // Lista de corredores do evento selecionado
+          // Lista de senhas do evento selecionado
           <div>
             <div className="flex items-center gap-4 mb-6">
               <Button
@@ -348,10 +466,61 @@ const JudgePage = () => {
                   {selectedEvent.name}
                 </h1>
                 <p className="text-muted-foreground">
-                  Avaliação de corredores - {selectedEvent.city},{" "}
-                  {selectedEvent.state}
+                  Avaliação de senhas -{" "}
+                  {getLocationInfo(selectedEvent.location).city}
+                  {getLocationInfo(selectedEvent.location).state &&
+                    `, ${getLocationInfo(selectedEvent.location).state}`}
                 </p>
               </div>
+            </div>
+
+            {/* Estatísticas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Total de Senhas
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {getVotingStats().total}
+                      </p>
+                    </div>
+                    <Key className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Avaliadas
+                      </p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {getVotingStats().voted}
+                      </p>
+                    </div>
+                    <CheckCircle className="h-8 w-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Pendentes
+                      </p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {getVotingStats().total - getVotingStats().voted}
+                      </p>
+                    </div>
+                    <Users className="h-8 w-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Search Bar para corredores */}
@@ -359,7 +528,7 @@ const JudgePage = () => {
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar corredores por nome ou número..."
+                  placeholder="Buscar corredores por nome..."
                   className="pl-12 pr-4 py-2 text-base border-2 focus:border-primary/50 transition-all rounded-xl bg-background/50 backdrop-blur-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -367,134 +536,142 @@ const JudgePage = () => {
               </div>
             </div>
 
-            {loadingRunners ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-20 bg-muted rounded-lg animate-pulse"
-                  ></div>
-                ))}
-              </div>
-            ) : filteredRunners.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Corredores para Avaliação</CardTitle>
-                  <CardDescription>
-                    {runners.filter((r) => r.hasVoted).length} de{" "}
-                    {runners.length} corredores avaliados
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Número</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredRunners.map((runner) => (
-                        <TableRow key={runner.id}>
-                          <TableCell className="font-mono font-bold">
-                            #{runner.number}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {runner.name}
-                          </TableCell>
-                          <TableCell>
-                            <span className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs">
-                              {runner.category}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {runner.hasVoted ? (
-                              <div className="flex items-center gap-2">
-                                {runner.vote ? (
-                                  <>
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                    <span className="text-green-600">
-                                      Aprovado
-                                    </span>
-                                  </>
+            {filteredRunners.length > 0 ? (
+              <div className="space-y-6">
+                {filteredRunners.map((runner) => {
+                  const allPasswords = getAllPasswordsFromRunner(runner);
+
+                  return (
+                    <Card key={runner.id}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <User className="h-5 w-5 text-primary" />
+                          {runner.name}
+                        </CardTitle>
+                        <CardDescription>
+                          {allPasswords.length} senha(s) para avaliação
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {allPasswords.map((password) => (
+                            <div
+                              key={password.id}
+                              className="border rounded-lg p-4 flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Key className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-mono font-bold text-lg">
+                                    #{password.number}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    password.status === "reserved"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : password.status === "used"
+                                      ? "bg-gray-100 text-gray-800"
+                                      : "bg-orange-100 text-orange-800"
+                                  }`}
+                                >
+                                  {password.status === "reserved" &&
+                                    "Reservada"}
+                                  {password.status === "used" && "Utilizada"}
+                                  {password.status || "Desconhecido"}
+                                </span>
+                              </div>
+
+                              <div className="flex-1">
+                                {password.hasVoted ? (
+                                  <div className="flex items-center gap-2 justify-center py-2">
+                                    {password.vote ? (
+                                      <>
+                                        <CheckCircle className="h-5 w-5 text-green-500" />
+                                        <span className="text-green-600 font-medium">
+                                          Aprovada
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="h-5 w-5 text-red-500" />
+                                        <span className="text-red-600 font-medium">
+                                          Reprovada
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
                                 ) : (
-                                  <>
-                                    <XCircle className="h-4 w-4 text-red-500" />
-                                    <span className="text-red-600">
-                                      Reprovado
-                                    </span>
-                                  </>
+                                  <div className="text-sm text-muted-foreground text-center py-2">
+                                    Aguardando avaliação
+                                  </div>
                                 )}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground">
-                                Pendente
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {!runner.hasVoted ? (
-                              <div className="flex gap-2 justify-end">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 border-red-200 hover:bg-red-50"
-                                  onClick={() => handleVote(runner.id, false)}
-                                  disabled={submittingVote === runner.id}
-                                >
-                                  {submittingVote === runner.id ? (
-                                    "Enviando..."
-                                  ) : (
-                                    <>
-                                      <XCircle className="h-4 w-4 mr-1" />
-                                      Reprovar
-                                    </>
-                                  )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                  onClick={() => handleVote(runner.id, true)}
-                                  disabled={submittingVote === runner.id}
-                                >
-                                  {submittingVote === runner.id ? (
-                                    "Enviando..."
-                                  ) : (
-                                    <>
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      Aprovar
-                                    </>
-                                  )}
-                                </Button>
+
+                              <div className="flex gap-2">
+                                {!password.hasVoted ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                                      onClick={() =>
+                                        handleVote(password.id, false)
+                                      }
+                                      disabled={submittingVote === password.id}
+                                    >
+                                      {submittingVote === password.id ? (
+                                        "Enviando..."
+                                      ) : (
+                                        <>
+                                          <XCircle className="h-4 w-4 mr-1" />
+                                          Reprovar
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      className="flex-1 bg-green-600 hover:bg-green-700"
+                                      onClick={() =>
+                                        handleVote(password.id, true)
+                                      }
+                                      disabled={submittingVote === password.id}
+                                    >
+                                      {submittingVote === password.id ? (
+                                        "Enviando..."
+                                      ) : (
+                                        <>
+                                          <CheckCircle className="h-4 w-4 mr-1" />
+                                          Aprovar
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => {
+                                      // TODO: Implementar reavaliação
+                                      console.log(
+                                        "Reavaliar senha:",
+                                        password.id
+                                      );
+                                    }}
+                                  >
+                                    Reavaliar
+                                  </Button>
+                                )}
                               </div>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  // Permitir reavaliação removendo o voto anterior
-                                  setRunners((prev) =>
-                                    prev.map((r) =>
-                                      r.id === runner.id
-                                        ? { ...r, hasVoted: false, vote: null }
-                                        : r
-                                    )
-                                  );
-                                }}
-                              >
-                                Reavaliar
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             ) : (
               <Card>
                 <CardContent className="py-16 text-center">

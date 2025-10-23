@@ -25,6 +25,7 @@ import { ListEventResponse } from "@/types/api";
 import { listEvents } from "@/lib/services/event.service";
 import { formatDate } from "@/utils/format-data.util";
 import { CountdownTimer } from "../components/CountdownTimer";
+import { UserRoleEnum } from "@/types/enums/api-enums";
 
 const Index = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -55,7 +56,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Header mantido igual */}
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50 supports-backdrop-blur:bg-background/60">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
@@ -75,20 +75,22 @@ const Index = () => {
             >
               Eventos
             </Link>
-            {isAuthenticated && (
-              <Link
-                to="/meus-ingressos"
-                className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
-              >
-                Meus Ingressos
-              </Link>
-            )}
-            {isAuthenticated && (
+            {isAuthenticated &&
+              user.role !== UserRoleEnum.JUDGE &&
+              user.role !== UserRoleEnum.SPEAKER && (
+                <Link
+                  to="/meus-ingressos"
+                  className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+                >
+                  Meus Ingressos
+                </Link>
+              )}
+            {isAuthenticated && user.role === UserRoleEnum.JUDGE && (
               <Link
                 to="/juiz"
                 className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
               >
-                Juiz
+                Área do Juiz
               </Link>
             )}
           </nav>

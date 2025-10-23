@@ -36,3 +36,8 @@ export const removeSpeakerFromEvent = async (
   const response = await api.delete(`/staff/speaker/${eventId}/${speakerId}`);
   return response.data;
 };
+
+export const listJudgeEvents = async (judgeId: string) => {
+  const response = await api.get(`/staff/${judgeId}/events`);
+  return response.data;
+};
