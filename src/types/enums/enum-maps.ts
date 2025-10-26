@@ -43,7 +43,7 @@ export const getSubscriptionStatusMap = (status: SubscriptionStatusEnum) => {
   return subscriptionStatusMap[status] ?? status;
 };
 
-const roleMap: Record<UserRoleEnum, string> = {
+export const roleMap: Record<UserRoleEnum, string> = {
   [UserRoleEnum.ADMIN]: "Administrador",
   [UserRoleEnum.ORGANIZER]: "Organizador",
   [UserRoleEnum.RUNNER]: "Corredor",

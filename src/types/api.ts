@@ -1,5 +1,6 @@
 import {
   UserRoleEnum,
+  JudgeVoteEnum,
   UserNatureEnum,
   EventStatusEnum,
   CategoryNameEnum,
@@ -176,4 +177,56 @@ export interface Runner {
   category: string;
   hasVoted?: boolean;
   vote?: boolean | null;
+}
+
+export interface Password {
+  id: string;
+  number: number;
+  status: string;
+  hasVoted?: boolean;
+  vote?: JudgeVoteEnum | null;
+  runnerName: string;
+  subscriptionId: string;
+}
+
+export interface Subscription {
+  id: string;
+  createdAt: string;
+  status: string;
+  passwords: Password[];
+}
+
+export interface Runner {
+  id: string;
+  name: string;
+  subscriptions: Subscription[];
+}
+
+export interface JudgeEvent {
+  id: string;
+  name: string;
+  description: string;
+  startAt: string;
+  endAt: string;
+  location: string;
+  status: EventStatusEnum;
+  isActive: boolean;
+  bannerUrl: string;
+  judges: Array<{
+    id: string;
+    name: string;
+  }>;
+  runners: Runner[];
+}
+
+export interface JudgeEventsResponse {
+  events: JudgeEvent[];
+  total: number;
+}
+
+export interface RunnerWithPasswords {
+  id: string;
+  name: string;
+  passwords: Password[];
+  expanded: boolean;
 }

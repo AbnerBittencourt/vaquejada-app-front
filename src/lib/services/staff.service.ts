@@ -1,4 +1,10 @@
 import { api } from "@/api/api-connection";
+import { JudgeEventsResponse } from "@/types/api";
+import {
+  JudgeVoteRequest,
+  JudgeVoteResponse,
+  SpeakerEvent,
+} from "@/types/dtos/staff.dto";
 
 export const addJudgeToEvent = async (
   eventId: string,
@@ -37,7 +43,44 @@ export const removeSpeakerFromEvent = async (
   return response.data;
 };
 
-export const listJudgeEvents = async (judgeId: string) => {
+export const listJudgeEvents = async (
+  judgeId: string
+): Promise<JudgeEventsResponse> => {
   const response = await api.get(`/staff/${judgeId}/events`);
+  return response.data;
+};
+
+export const submitJudgeVote = async (data: JudgeVoteRequest) => {
+  const response = await api.post(`/staff/judge/vote`, data);
+  return response.data;
+};
+
+export const getJudgeVotesByEvent = async (
+  eventId: string,
+  judgeId: string
+): Promise<JudgeVoteResponse[]> => {
+  const response = await api.get(`/staff/judge/votes/${judgeId}/${eventId}`);
+  return response.data;
+};
+
+export const updateJudgeVote = async (
+  voteId: string,
+  data: Partial<JudgeVoteRequest>
+): Promise<JudgeVoteResponse> => {
+  const response = await api.put(`/staff/judge/vote/${voteId}`, data);
+  return response.data;
+};
+
+export const listSpeakerEvents = async (
+  speakerId: string
+): Promise<SpeakerEvent[]> => {
+  const response = await api.get(`/staff/speaker/${speakerId}/events`);
+  return response.data;
+};
+
+export const getEventVotesSummary = async (eventId: string) => {
+  const response = await api.get(
+    `/staff/speaker/event/${eventId}/votes-summary`
+  );
   return response.data;
 };

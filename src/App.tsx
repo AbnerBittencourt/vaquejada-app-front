@@ -16,7 +16,7 @@ import ComprarSenhas from "./pages/ComprarSenhas";
 import MeusIngressos from "./pages/MeusIngressos";
 import NotFound from "./pages/NotFound";
 import JudgePage from "./pages/JudgePage";
-import { ProtectedRoute } from "./pages/ProtectedRoute";
+import SpeakerPage from "./pages/SpeakerPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +40,7 @@ const App = () => (
             <Route path="/admin/perfil" element={<PerfilAdmin />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/juiz" element={<JudgePage />} />
+            <Route path="/locutor" element={<SpeakerPage />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

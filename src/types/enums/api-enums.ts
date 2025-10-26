@@ -43,3 +43,10 @@ export enum SubscriptionStatusEnum {
   CONFIRMED = "confirmed",
   CANCELLED = "cancelled",
 }
+
+export enum JudgeVoteEnum {
+  VALID = "valeu_o_boi",
+  NULL = "nulo",
+  TV = "tv",
+  DID_NOT_RUN = "boi_nao_quis_correr",
+}
