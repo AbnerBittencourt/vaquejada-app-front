@@ -12,15 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Shield,
-  ArrowLeft,
-  MapPin,
-  Loader2,
-  Save,
-  Edit,
-  LogOut,
-} from "lucide-react";
+import { Shield, ArrowLeft, MapPin, Loader2, Save, Edit } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { getUserById, updateUser } from "@/lib/services/user.service";
@@ -36,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { BRstates } from "@/shared/br-states";
 import { useAuth } from "@/contexts/AuthContext";
+import { Header } from "@/components/ui/header";
 
 interface AdminProfileFormData {
   name: string;
@@ -118,7 +111,6 @@ const PerfilAdmin = () => {
       const response = await getUserById(userId);
       setProfile(response);
 
-      // Preencher formData com os dados do perfil
       setFormData({
         name: response.name || "",
         email: response.email || "",
@@ -162,7 +154,6 @@ const PerfilAdmin = () => {
         return;
       }
 
-      // Preparar dados para envio
       const updateData = {
         name: formData.name,
         email: formData.email,
@@ -192,7 +183,7 @@ const PerfilAdmin = () => {
       });
 
       setEditing(false);
-      carregarPerfil(); // Recarregar para garantir dados atualizados
+      carregarPerfil();
     } catch (err) {
       console.error("Erro ao atualizar perfil:", err);
       toast({
@@ -246,8 +237,6 @@ const PerfilAdmin = () => {
 
     try {
       setUpdating(true);
-      // Aqui você precisaria implementar a função changePassword no user.service
-      // await changePassword(passwordData.currentPassword, passwordData.newPassword);
 
       toast({
         title: "Sucesso",
@@ -287,6 +276,15 @@ const PerfilAdmin = () => {
     return "Localização não informada";
   };
 
+  // Botão personalizado para voltar ao dashboard
+  const backButton = (
+    <Button variant="ghost" size="icon" asChild>
+      <Link to="/admin/dashboard">
+        <ArrowLeft className="h-5 w-5" />
+      </Link>
+    </Button>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -300,35 +298,14 @@ const PerfilAdmin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/admin/dashboard">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
-            <div className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold">Perfil do Organizador</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{user?.name}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Header atualizado */}
+      <Header
+        user={user || { name: "Organizador", role: UserRoleEnum.ADMIN }}
+        onLogout={logout}
+        isAuthenticated={isAuthenticated}
+        title="Perfil do Organizador"
+        customActions={backButton}
+      />
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">

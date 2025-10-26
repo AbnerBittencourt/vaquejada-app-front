@@ -38,6 +38,9 @@ import { formatPrice } from "@/utils/format-data.util";
 import { getMe } from "@/lib/services/user.service";
 import { listUsers } from "@/lib/services/user.service";
 import { useAuth } from "@/contexts/AuthContext";
+import { Header } from "@/components/ui/header";
+
+import { UserRoleEnum } from "@/types/enums/api-enums";
 
 const AdminDashboard = () => {
   const [usuarios, setUsuarios] = useState<GetUserResponse[]>([]);
@@ -81,7 +84,9 @@ const AdminDashboard = () => {
     checkinsHoje: 0,
   });
 
-  const { user, logout } = useAuth();
+  const { user: authUser, logout } = useAuth();
+
+  const currentUser = authUser || usuario;
 
   useEffect(() => {
     setUsuariosPage(1);
@@ -307,79 +312,29 @@ const AdminDashboard = () => {
     }
   };
 
+  const userData = currentUser
+    ? {
+        name: currentUser.name || "Administrador",
+        role: UserRoleEnum.ADMIN,
+        email: currentUser.email,
+      }
+    : {
+        name: "Administrador",
+        role: UserRoleEnum.ADMIN,
+        email: "",
+      };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-primary/5">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50 supports-backdrop-blur:bg-card/60">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm"></div>
-              <Shield className="h-8 w-8 text-primary relative z-10" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Painel do Organizador
-              </h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                {loadingUsuario
-                  ? "Carregando..."
-                  : user?.name || usuario?.name || "Organizador"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 relative group">
-            <div className="relative group">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-xl flex items-center gap-2 px-3 py-2 hover:bg-primary/10 border border-transparent hover:border-primary/20"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary-foreground" />
-                  </div>
-                  <span className="font-medium max-w-[120px] truncate hidden sm:block">
-                    {user?.name || usuario?.name}
-                  </span>
-                </div>
-              </Button>
-              <div className="absolute right-0 top-full mt-2 min-w-[200px] bg-card/95 backdrop-blur-md border rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
-                <div className="p-2">
-                  <div className="px-3 py-2 border-b border-border/50 mb-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {user?.name || usuario?.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {user?.email || usuario?.email}
-                    </p>
-                  </div>
-                  <Link
-                    to="/admin/perfil"
-                    className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-all duration-200 group/item"
-                  >
-                    <User className="h-4 w-4 text-primary" />
-                    <span>Meu Perfil</span>
-                    <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200 group/item"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sair</span>
-                    <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        user={userData}
+        onLogout={logout}
+        isAuthenticated={true}
+        title="Painel do Organizador"
+        showUserDropdown={true}
+      />
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-card/80 backdrop-blur-sm border-2 hover:shadow-lg transition-all">
             <CardHeader className="flex flex-row items-center justify-between pb-3">

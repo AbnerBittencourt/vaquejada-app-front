@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
@@ -19,13 +18,10 @@ import {
   Loader2,
   Clock,
   UserCheck,
-  LogOut,
-  User,
-  ArrowRight,
   AlertTriangle,
   ImageOff,
 } from "lucide-react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventById, getEventCategories } from "@/lib/services/event.service";
@@ -34,10 +30,10 @@ import {
   CategoryResponse,
   EventCategoryResponse,
 } from "@/types/api";
-import { EventStatusEnum } from "@/types/enums/api-enums";
 import { formatDate, formatPrice } from "@/utils/format-data.util";
-import { getCategoryNameMap, getEventStatusMap } from "@/types/enums/enum-maps";
 import { CategoriasTab } from "@/components/eventos/CategoriasTab";
+import { Header } from "@/components/ui/header";
+import { UserRoleEnum } from "@/types/enums/api-enums";
 
 const EventoDetalhes = () => {
   const { id } = useParams();
@@ -67,7 +63,7 @@ const EventoDetalhes = () => {
 
   useEffect(() => {
     if (evento?.purchaseClosedAt) {
-      calculateTimeLeft(); // Calcular imediatamente
+      calculateTimeLeft();
 
       const countdownTimer = setInterval(() => {
         calculateTimeLeft();
@@ -202,12 +198,10 @@ const EventoDetalhes = () => {
 
     return (
       <div className="text-center">
-        {/* Título */}
         <p className="text-primary font-semibold text-sm uppercase tracking-wide mb-3">
           Encerramento das Vendas
         </p>
 
-        {/* Blocos de Tempo */}
         <div className="flex items-stretch justify-between gap-0.5 mb-2">
           {timeLeft.days > 0 && (
             <>
@@ -228,7 +222,6 @@ const EventoDetalhes = () => {
           <TimeUnit value={timeLeft.seconds} label="seg" />
         </div>
 
-        {/* Data de encerramento */}
         <p className="text-primary font-semibold text-sm">
           Até {formatDateTime(evento.purchaseClosedAt)}
         </p>
@@ -250,88 +243,12 @@ const EventoDetalhes = () => {
   if (error || !evento) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-backdrop-blur:bg-background/60">
-          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Link to="/" className="flex items-center gap-3 group">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm group-hover:blur-md transition-all"></div>
-                  <Users className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
-                </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Vaquejada APP
-                </h1>
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              {isAuthenticated ? (
-                <div className="relative group">
-                  <Button
-                    variant="ghost"
-                    className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-primary/10 transition-all duration-200 border border-transparent hover:border-primary/20"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                      <span className="font-medium max-w-[120px] truncate hidden sm:block">
-                        {user?.name}
-                      </span>
-                    </div>
-                  </Button>
-
-                  <div className="absolute right-0 top-full mt-2 min-w-[200px] bg-card/95 backdrop-blur-md border rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
-                    <div className="p-2">
-                      <div className="px-3 py-2 border-b border-border/50 mb-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {user?.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {user?.email}
-                        </p>
-                      </div>
-                      <Link
-                        to="/perfil-corredor"
-                        className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-all duration-200 group/item"
-                      >
-                        <User className="h-4 w-4 text-primary" />
-                        <span>Meu Perfil</span>
-                        <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                      </Link>
-                      <button
-                        onClick={logout}
-                        className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200 group/item"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Sair</span>
-                        <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    asChild
-                    className="hover:bg-primary/10"
-                  >
-                    <Link to="/login">Entrar</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Link to="/cadastro">Cadastrar</Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        <Header
+          user={user || { name: "Usuário", role: UserRoleEnum.USER }}
+          onLogout={logout}
+          isAuthenticated={isAuthenticated}
+          title="Vaquejada APP"
+        />
 
         <div className="container mx-auto px-4 py-8">
           <Card>
@@ -349,117 +266,19 @@ const EventoDetalhes = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-backdrop-blur:bg-background/60">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="hover:bg-accent rounded-lg"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm group-hover:blur-md transition-all"></div>
-                <Users className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Vaquejada APP
-              </h1>
-            </Link>
-          </div>
-
-          <nav className="hidden md:flex items-center gap-8">
-            <Link
-              to="/"
-              className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
-            >
-              Eventos
-            </Link>
-            {isAuthenticated && (
-              <Link
-                to="/meus-ingressos"
-                className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
-              >
-                Meus Ingressos
-              </Link>
-            )}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <div className="relative group">
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-primary/10 transition-all duration-200 border border-transparent hover:border-primary/20"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary-foreground" />
-                    </div>
-                    <span className="font-medium max-w-[120px] truncate hidden sm:block">
-                      {user?.name}
-                    </span>
-                  </div>
-                </Button>
-
-                <div className="absolute right-0 top-full mt-2 min-w-[200px] bg-card/95 backdrop-blur-md border rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
-                  <div className="p-2">
-                    <div className="px-3 py-2 border-b border-border/50 mb-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {user?.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {user?.email}
-                      </p>
-                    </div>
-                    <Link
-                      to="/perfil-corredor"
-                      className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-all duration-200 group/item"
-                    >
-                      <User className="h-4 w-4 text-primary" />
-                      <span>Meu Perfil</span>
-                      <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                    </Link>
-                    <button
-                      onClick={logout}
-                      className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200 group/item"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sair</span>
-                      <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" asChild className="hover:bg-primary/10">
-                  <Link to="/login">Entrar</Link>
-                </Button>
-                <Button
-                  asChild
-                  className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Link to="/cadastro">Cadastrar</Link>
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header
+        user={user || { name: "Usuário", role: UserRoleEnum.USER }}
+        onLogout={logout}
+        isAuthenticated={isAuthenticated}
+        title="Vaquejada APP"
+      />
 
       <div className="container mx-auto px-4 mt-6 relative z-10">
-        {/* ✅ BANNER AO LADO DO NOME DO EVENTO - FORMATO PORTRAIT */}
         <Card className="mb-8 shadow-lg border-2 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 pointer-events-none"></div>
 
           <CardHeader className="pb-4 relative z-10">
             <div className="flex flex-col lg:flex-row gap-6">
-              {/* ✅ BANNER EM FORMATO PORTRAIT (EM PÉ) */}
               <div className="lg:w-48 lg:flex-shrink-0">
                 <div className="relative h-64 w-full overflow-hidden rounded-lg border-2 bg-muted">
                   {evento.bannerUrl ? (
@@ -477,7 +296,6 @@ const EventoDetalhes = () => {
                           if (fallback) fallback.classList.remove("hidden");
                         }}
                       />
-                      {/* Fallback se a imagem não carregar */}
                       <div className="hidden w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                         <div className="text-center">
                           <ImageOff className="h-12 w-12 text-primary/40 mx-auto mb-2" />
@@ -488,7 +306,6 @@ const EventoDetalhes = () => {
                       </div>
                     </>
                   ) : (
-                    // Placeholder quando não há banner
                     <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
                       <div className="text-center">
                         <ImageOff className="h-12 w-12 text-primary/30 mx-auto mb-2" />
@@ -499,7 +316,6 @@ const EventoDetalhes = () => {
                     </div>
                   )}
 
-                  {/* Badge de Status */}
                   <div className="absolute top-2 right-2">
                     <div
                       className={`px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
@@ -516,7 +332,6 @@ const EventoDetalhes = () => {
                 </div>
               </div>
 
-              {/* Informações do Evento */}
               <div className="flex-1">
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   <div className="flex-1">
