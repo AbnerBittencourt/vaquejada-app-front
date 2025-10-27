@@ -4,6 +4,7 @@ import {
   JudgeVoteRequest,
   JudgeVoteResponse,
   SpeakerEvent,
+  SpeakerVoteSummaryResponse,
 } from "@/types/dtos/staff.dto";
 
 export const addJudgeToEvent = async (
@@ -78,9 +79,9 @@ export const listSpeakerEvents = async (
   return response.data;
 };
 
-export const getEventVotesSummary = async (eventId: string) => {
-  const response = await api.get(
-    `/staff/speaker/event/${eventId}/votes-summary`
-  );
+export const getEventVotesSummary = async (
+  eventId: string
+): Promise<SpeakerVoteSummaryResponse> => {
+  const response = await api.get(`/speaker/vote-summary/${eventId}`);
   return response.data;
 };

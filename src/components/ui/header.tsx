@@ -1,9 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
 import { Award, User, LogOut, ArrowRight, Settings, Bell } from "lucide-react";
-import { UserRoleEnum } from "@/types/enums/api-enums";
-import { Button } from "./button";
-import { Badge } from "./badge";
+
 import { roleMap } from "@/types/enums/enum-maps";
+import { UserRoleEnum } from "@/types/enums/api-enums";
+
+import { Badge } from "./badge";
+import { Button } from "./button";
 import { Navigation } from "./nav";
 
 interface HeaderProps {

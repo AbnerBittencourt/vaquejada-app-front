@@ -1,5 +1,9 @@
 import { Judge, Runner } from "../api";
-import { JudgeVoteEnum } from "../enums/api-enums";
+import {
+  CategoryNameEnum,
+  EventStatusEnum,
+  JudgeVoteEnum,
+} from "../enums/api-enums";
 
 export interface JudgeVoteRequest {
   judgeId: string;
@@ -48,15 +52,52 @@ export interface SpeakerEvent {
   location: string;
   startAt: string;
   endAt: string;
-  status: string;
+  status: EventStatusEnum;
   bannerUrl?: string;
   judges: Judge[];
   runners: Runner[];
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface SpeakerEventsResponse {
   events: SpeakerEvent[];
   total: number;
+}
+export interface SpeakerVoteSummaryResponse {
+  eventId: string;
+  eventName: string;
+  eventDate: Date;
+  runners: RunnerVoteSummaryResponse[];
+}
+
+export interface RunnerVoteSummaryResponse {
+  userId: string;
+  runnerName: string;
+  runnerCity: string;
+  runnerState: string;
+  passwords: PasswordVoteSummaryResponse[];
+  totalPoints: number;
+  validVotes: number;
+  nullVotes: number;
+  tvVotes: number;
+  didNotRunVotes: number;
+}
+
+export interface PasswordVoteSummaryResponse {
+  passwordId: string;
+  passwordNumber: string;
+  passwordPrice: number;
+  categoryName: CategoryNameEnum;
+  votes: JudgeVoteDetailResponse[];
+  passwordPoints: number;
+  passwordStatus: string;
+}
+
+export interface JudgeVoteDetailResponse {
+  judgeId: string;
+  judgeName: string;
+  vote: string;
+  points: number;
+  comments?: string;
+  votedAt: Date;
 }
