@@ -129,7 +129,6 @@ const AdminDashboard = () => {
     try {
       setLoadingUsuarios(true);
       const response = await listUsers();
-      console.log(response);
       setUsuarios(response ?? []);
     } catch (err) {
       console.error("Erro ao carregar usuários:", err);
