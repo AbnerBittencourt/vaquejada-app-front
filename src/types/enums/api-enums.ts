@@ -24,6 +24,7 @@ export enum PasswordStatusEnum {
   AVAILABLE = "available",
   USED = "used",
   RESERVED = "reserved",
+  PENDING   = "pending",
 }
 
 export enum CategoryNameEnum {

@@ -23,10 +23,8 @@ import { EventCategoryResponse, PasswordResponse } from "@/types/api";
 import { formatPrice } from "@/utils/format-data.util";
 import { getCategoryNameMap } from "@/types/enums/enum-maps";
 import { PasswordStatusEnum } from "@/types/enums/api-enums";
-import {
-  getCategoryPasswords,
-  purchasePasswords,
-} from "@/lib/services/password.service";
+import { getCategoryPasswords } from "@/lib/services/password.service";
+import { createCheckoutProSession } from "@/lib/services/payments.service"; // ✅ novo
 
 interface CategoriasTabProps {
   eventoId: string;
@@ -78,7 +76,6 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         selectedCategory.category.id
       );
       setPasswords(response || []);
-
       setSelectedNumbers([]);
       setSelectedPasswordIds([]);
     } catch (err) {
@@ -250,6 +247,8 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
           return "bg-green-500 text-white border-green-500";
         case PasswordStatusEnum.USED:
           return "bg-gray-400 text-white border-gray-500";
+        case PasswordStatusEnum.PENDING:
+          return "bg-orange-400 text-white border-orange-400";
         default:
           return "bg-muted text-muted-foreground opacity-50";
       }
@@ -266,6 +265,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         [PasswordStatusEnum.AVAILABLE]: "disponível",
         [PasswordStatusEnum.RESERVED]: "reservada",
         [PasswordStatusEnum.USED]: "usada",
+        [PasswordStatusEnum.PENDING]: "pendente de pagamento",
       };
       return `Senha ${statusMap[numberInfo.status] || "indisponível"}`;
     }
@@ -319,36 +319,35 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
     }
 
     try {
-      await purchasePasswords({
+      // console.log("Enviando para compra:", {
+      //   eventId: eventoId,
+      //   categoryId: selectedCategory?.category.id,
+      //   passwordIds: selectedPasswordIds,
+      //   selectedNumbers: selectedNumbers,
+      // });
+
+      const total =
+        (Number(selectedCategory?.price) || 0) * selectedNumbers.length;
+
+      const { initPoint } = await createCheckoutProSession({
         eventId: eventoId,
         categoryId: selectedCategory?.category.id || "",
         passwordIds: selectedPasswordIds,
+        total,
       });
 
-      toast({
-        title: "Sucesso!",
-        description: "Compra realizada com sucesso!",
-      });
+      // redireciona o usuário para o Mercado Pago
+      window.location.href = initPoint;
+    } catch (error: any) {
+      console.error("Erro no checkout:", error);
 
-      setSelectedNumbers([]);
-      setSelectedPasswordIds([]);
-      setAcceptedTerms(false);
-
-      carregarPasswords();
-    } catch (error) {
-      console.error("Erro na compra:", error);
-
-      let errorMessage =
-        "Não foi possível processar a compra. Tente novamente.";
-
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Não foi possível iniciar o pagamento.";
 
       toast({
-        title: "Erro na compra",
+        title: "Erro no pagamento",
         description: errorMessage,
         variant: "destructive",
       });
