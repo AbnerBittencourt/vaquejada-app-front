@@ -13,7 +13,35 @@ export const Navigation = ({ isAuthenticated, user }: NavigationProps) => {
         to="/"
         className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
       >
-        Eventos
+        Início
+      </Link>
+
+      <Link
+        to="/quem-somos"
+        className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+      >
+        Quem Somos
+      </Link>
+
+      <Link
+        to="/vaquejadas"
+        className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+      >
+        Vaquejadas
+      </Link>
+
+      <Link
+        to="/como-contratar"
+        className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+      >
+        Como Contratar
+      </Link>
+
+      <Link
+        to="/fale-conosco"
+        className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
+      >
+        Fale Conosco
       </Link>
 
       {isAuthenticated &&

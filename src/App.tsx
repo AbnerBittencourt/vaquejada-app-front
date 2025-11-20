@@ -17,6 +17,14 @@ import MeusIngressos from "./pages/MeusIngressos";
 import NotFound from "./pages/NotFound";
 import JudgePage from "./pages/JudgePage";
 import SpeakerPage from "./pages/SpeakerPage";
+import QuemSomos from "./pages/QuemSomos";
+import Vaquejadas from "./pages/Vaquejadas";
+import ComoContratar from "./pages/ComoContratar";
+import FaleConosco from "./pages/FaleConosco";
+import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
+import PoliticaCancelamento from "./pages/PoliticaCancelamento";
+import TermosUso from "./pages/TermosUso";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +37,14 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/quem-somos" element={<QuemSomos />} />
+            <Route path="/vaquejadas" element={<Vaquejadas />} />
+            <Route path="/como-contratar" element={<ComoContratar />} />
+            <Route path="/fale-conosco" element={<FaleConosco />} />
+            <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+            <Route path="/politica-cancelamento" element={<PoliticaCancelamento />} />
+            <Route path="/termos-uso" element={<TermosUso />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/evento/:id" element={<EventoDetalhes />} />
