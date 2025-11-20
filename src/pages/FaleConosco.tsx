@@ -1,4 +1,5 @@
 import { Header } from "@/components/ui/header";
+import { Footer } from "@/components/ui/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRoleEnum } from "@/types/enums/api-enums";
 import { Button } from "@/components/ui/button";
@@ -404,15 +405,7 @@ const FaleConosco = () => {
         </div>
       </section>
 
-      <footer className="border-t bg-card/50 backdrop-blur-sm py-10 px-4 mt-16">
-        <div className="container mx-auto">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              © 2025 AMJ Group Softwares LTDA. Todos os direitos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

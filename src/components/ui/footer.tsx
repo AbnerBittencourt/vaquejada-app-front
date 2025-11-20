@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 export const Footer = () => {
   return (
@@ -7,8 +8,12 @@ export const Footer = () => {
       <div className="container mx-auto">
         <div className="flex flex-col items-center gap-6">
           {/* Logo e Nome */}
-          <div className="flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-3">
+            <img
+              src={logo}
+              alt="Vaquejada APP"
+              className="h-10 w-10 object-contain"
+            />
             <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
               Vaquejada APP
             </span>
@@ -27,12 +32,6 @@ export const Footer = () => {
               className="text-muted-foreground hover:text-primary transition-colors"
             >
               Quem Somos
-            </Link>
-            <Link
-              to="/vaquejadas"
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
-              Vaquejadas
             </Link>
             <Link
               to="/como-contratar"

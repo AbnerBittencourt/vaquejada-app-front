@@ -7,6 +7,7 @@ import { UserRoleEnum } from "@/types/enums/api-enums";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Navigation } from "./nav";
+import logo from "@/assets/logo.png";
 
 interface HeaderProps {
   user: {
@@ -51,8 +52,11 @@ export const Header = ({
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 rounded-xl blur-sm group-hover:blur-md transition-all" />
-            <Award className="h-8 w-8 text-primary relative z-10 group-hover:scale-110 transition-transform" />
+            <img
+              src={logo}
+              alt="Vaquejada APP"
+              className="h-12 w-12 object-contain group-hover:scale-110 transition-transform"
+            />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             {getTitleByPath()}

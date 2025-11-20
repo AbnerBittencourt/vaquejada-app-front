@@ -24,6 +24,7 @@ import { listEvents } from "@/lib/services/event.service";
 import { formatDate } from "@/utils/format-data.util";
 import { CountdownTimer } from "../components/CountdownTimer";
 import { Header } from "@/components/ui/header";
+import { Footer } from "@/components/ui/footer";
 import { UserRoleEnum } from "@/types/enums/api-enums";
 
 const Index = () => {
@@ -338,25 +339,7 @@ const Index = () => {
         </div>
       </section>
 
-      <footer className="border-t bg-card/50 backdrop-blur-sm py-10 px-4">
-        <div className="container mx-auto">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Users className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Vaquejada APP
-              </span>
-            </div>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Simplificando a experiência em vaquejadas para participantes e
-              organizadores
-            </p>
-            <p className="text-sm text-muted-foreground">
-              © 2025 Vaquejada APP. Todos os direitos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

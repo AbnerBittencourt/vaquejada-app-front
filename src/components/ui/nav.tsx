@@ -24,13 +24,6 @@ export const Navigation = ({ isAuthenticated, user }: NavigationProps) => {
       </Link>
 
       <Link
-        to="/vaquejadas"
-        className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
-      >
-        Vaquejadas
-      </Link>
-
-      <Link
         to="/como-contratar"
         className="text-foreground/80 hover:text-primary font-medium transition-all duration-200 hover:scale-105"
       >

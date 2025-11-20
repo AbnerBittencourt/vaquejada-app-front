@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Header } from "@/components/ui/header";
 import { UserRoleEnum } from "@/types/enums/api-enums";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo.png";
 import {
   Card,
   CardContent,
@@ -199,6 +200,15 @@ const CheckoutSuccess = () => {
             <>
               {/* Success Hero */}
               <div className="text-center mb-12">
+                {/* Logo */}
+                <div className="mb-8">
+                  <img
+                    src={logo}
+                    alt="Vaquejada APP Logo"
+                    className="w-32 h-32 mx-auto object-contain"
+                  />
+                </div>
+
                 <div className="relative inline-block mb-6">
                   <div className="absolute inset-0 bg-green-200 rounded-full blur-2xl opacity-50 animate-pulse"></div>
                   <div className="relative w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center">

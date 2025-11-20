@@ -18,7 +18,6 @@ import NotFound from "./pages/NotFound";
 import JudgePage from "./pages/JudgePage";
 import SpeakerPage from "./pages/SpeakerPage";
 import QuemSomos from "./pages/QuemSomos";
-import Vaquejadas from "./pages/Vaquejadas";
 import ComoContratar from "./pages/ComoContratar";
 import FaleConosco from "./pages/FaleConosco";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
@@ -38,7 +37,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/quem-somos" element={<QuemSomos />} />
-            <Route path="/vaquejadas" element={<Vaquejadas />} />
             <Route path="/como-contratar" element={<ComoContratar />} />
             <Route path="/fale-conosco" element={<FaleConosco />} />
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
