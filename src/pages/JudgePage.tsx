@@ -145,10 +145,11 @@ const JudgePage = () => {
     setExpandedRunners(new Set());
   };
 
-  const handleVote = async (passwordId: string, vote: JudgeVoteEnum) => {
+  const handleVote = async (passwordId: string, vote: JudgeVoteEnum, cattleNumber?: number) => {
     if (!selectedEvent || !user?.id) return;
 
-    setSubmittingVote(passwordId);
+    const voteKey = cattleNumber ? `${passwordId}-${cattleNumber}` : passwordId;
+    setSubmittingVote(voteKey);
 
     try {
       await submitJudgeVote({
@@ -156,23 +157,25 @@ const JudgePage = () => {
         eventId: selectedEvent.id,
         passwordId,
         vote,
+        cattleNumber,
       });
 
       setExistingVotes((prev) => [
-        ...prev.filter((v) => v.passwordId !== passwordId),
+        ...prev.filter((v) => !(v.passwordId === passwordId && v.cattleNumber === cattleNumber)),
         {
-          id: `temp-${passwordId}`,
+          id: `temp-${voteKey}`,
           judgeId: user.id,
           eventId: selectedEvent.id,
           passwordId,
           vote,
+          cattleNumber,
           createdAt: new Date().toISOString(),
         },
       ]);
 
       toast({
         title: "Voto registrado com sucesso!",
-        description: "Seu voto foi computado.",
+        description: cattleNumber ? `Voto do boi ${cattleNumber} computado.` : "Seu voto foi computado.",
         variant: "default",
       });
     } catch (err) {
@@ -190,13 +193,15 @@ const JudgePage = () => {
   const handleUpdateVote = async (
     scoreId: string,
     passwordId: string,
-    newVote: JudgeVoteEnum
+    newVote: JudgeVoteEnum,
+    cattleNumber?: number
   ) => {
     if (!selectedEvent || !user?.id) return;
 
-    setSubmittingVote(passwordId);
+    const voteKey = cattleNumber ? `${passwordId}-${cattleNumber}` : passwordId;
+    setSubmittingVote(voteKey);
 
-    console.log("Atualizando voto:", { scoreId, passwordId, newVote });
+    console.log("Atualizando voto:", { scoreId, passwordId, newVote, cattleNumber });
     try {
       await updateJudgeVote(scoreId, {
         vote: newVote,
@@ -210,7 +215,7 @@ const JudgePage = () => {
 
       toast({
         title: "Voto atualizado com sucesso!",
-        description: "Seu voto foi alterado.",
+        description: cattleNumber ? `Voto do boi ${cattleNumber} alterado.` : "Seu voto foi alterado.",
         variant: "default",
       });
     } catch (err) {
@@ -279,25 +284,41 @@ const JudgePage = () => {
       }));
   };
 
-  const getExistingVote = (passwordId: string): JudgeVoteResponse | null => {
-    const vote = existingVotes.find((v) => v.passwordId === passwordId);
+  const getExistingVote = (passwordId: string, cattleNumber?: number): JudgeVoteResponse | null => {
+    const vote = existingVotes.find((v) =>
+      v.passwordId === passwordId &&
+      (cattleNumber === undefined || v.cattleNumber === cattleNumber)
+    );
     return vote || null;
+  };
+
+  const getExistingVotesForPassword = (passwordId: string): JudgeVoteResponse[] => {
+    return existingVotes.filter((v) => v.passwordId === passwordId);
   };
 
   const canChangeVote = (existingVote: JudgeVoteResponse | null): boolean => {
     return existingVote?.vote === JudgeVoteEnum.TV;
   };
 
+  const getCattlePerPassword = (): number => {
+    return selectedEvent?.cattlePerPassword || 1;
+  };
+
   const getVotingStats = () => {
-    if (!selectedEvent) return { total: 0, voted: 0 };
+    if (!selectedEvent) return { total: 0, voted: 0, totalCattle: 0, votedCattle: 0 };
 
     const runners = getRunnersWithPasswords(selectedEvent);
     const allPasswords = runners.flatMap((runner) => runner.passwords);
-    const votedPasswords = allPasswords.filter(
-      (password) => getExistingVote(password.id) !== null
-    );
+    const cattlePerPassword = getCattlePerPassword();
+    const totalCattle = allPasswords.length * cattlePerPassword;
+    const votedCattle = existingVotes.length;
 
-    return { total: allPasswords.length, voted: votedPasswords.length };
+    return {
+      total: allPasswords.length,
+      voted: allPasswords.filter((p) => getExistingVotesForPassword(p.id).length >= cattlePerPassword).length,
+      totalCattle,
+      votedCattle
+    };
   };
 
   const filteredEvents = events.filter((event) => {
@@ -343,7 +364,7 @@ const JudgePage = () => {
         };
       case JudgeVoteEnum.NULL:
         return {
-          label: "Nulo",
+          label: "Zero",
           color: "text-yellow-600",
           bgColor: "bg-yellow-100",
           icon: Ban,
@@ -357,7 +378,7 @@ const JudgePage = () => {
         };
       case JudgeVoteEnum.DID_NOT_RUN:
         return {
-          label: "Boi Não Quis Correr",
+          label: "Retorno",
           color: "text-red-600",
           bgColor: "bg-red-100",
           icon: SkipForward,
@@ -534,6 +555,12 @@ const JudgePage = () => {
                           <Key className="h-4 w-4" />
                           <span>{totalPasswords} senhas para avaliar</span>
                         </div>
+                        {event.cattlePerPassword && (
+                          <div className="flex items-center gap-2 text-sm text-primary font-medium mt-2">
+                            <Award className="h-4 w-4" />
+                            <span>{event.cattlePerPassword} boi(s) por senha</span>
+                          </div>
+                        )}
                         <div className="mt-2">
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getEventStatusColors(
@@ -587,7 +614,27 @@ const JudgePage = () => {
             </div>
 
             {/* Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {selectedEvent.cattlePerPassword && (
+                <Card className="border-2 border-primary/30 bg-primary/5">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Bois por Senha
+                        </p>
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedEvent.cattlePerPassword}
+                        </p>
+                      </div>
+                      <Award className="h-8 w-8 text-primary" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Avalie {selectedEvent.cattlePerPassword} boi(s) por passada
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -733,230 +780,149 @@ const JudgePage = () => {
 
                       {isExpanded && (
                         <CardContent className="pt-0">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 mt-4">
+                          <div className="space-y-3 mt-4">
                             {runner.passwords.map((password) => {
-                              const existingVote = getExistingVote(password.id);
-                              const voteInfo = existingVote
-                                ? getVoteInfo(existingVote.vote)
-                                : null;
-                              const VoteIcon = voteInfo?.icon;
-                              const canChange = canChangeVote(existingVote);
+                              const cattleCount = getCattlePerPassword();
+                              const passwordVotes = getExistingVotesForPassword(password.id);
+                              const allCattleVoted = passwordVotes.length >= cattleCount;
 
                               return (
-                                <Card key={password.id} className="relative">
-                                  <CardHeader className="pb-3">
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                      <Key className="h-5 w-5 text-primary" />
-                                      Senha #{password.number}
-                                    </CardTitle>
-                                  </CardHeader>
-
-                                  <CardContent className="pb-3">
-                                    <div className="flex items-center justify-between mb-4">
-                                      <span
-                                        className={`px-2 py-1 rounded-full text-xs ${getPasswordStatusColors(
-                                          password.status
-                                        )}`}
-                                      >
-                                        {getPasswordStatusLabel(
-                                          password.status
-                                        )}
-                                      </span>
-
-                                      {existingVote && VoteIcon && (
-                                        <div
-                                          className={`flex items-center gap-1 px-2 py-1 rounded-full ${voteInfo.bgColor}`}
-                                        >
-                                          <VoteIcon
-                                            className={`h-3 w-3 ${voteInfo.color}`}
-                                          />
-                                          <span
-                                            className={`text-xs font-medium ${voteInfo.color}`}
-                                          >
-                                            {voteInfo.label}
+                                <div key={password.id} className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow">
+                                  {/* Layout horizontal: Info à esquerda, Votação à direita */}
+                                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                    {/* Coluna esquerda: Número da senha e info do corredor */}
+                                    <div className="flex-shrink-0 lg:w-48">
+                                      {/* Número da senha em destaque */}
+                                      <div className="text-center lg:text-left mb-2">
+                                        <span className="text-3xl font-bold text-primary">#{password.number}</span>
+                                      </div>
+                                      {/* Info do corredor */}
+                                      <div className="text-center lg:text-left">
+                                        <p className="text-sm font-medium text-foreground">{password.runnerName}</p>
+                                        <div className="flex items-center justify-center lg:justify-start gap-2 mt-1">
+                                          <span className={`px-2 py-0.5 rounded-full text-xs ${getPasswordStatusColors(password.status)}`}>
+                                            {getPasswordStatusLabel(password.status)}
                                           </span>
-                                          {canChange && (
-                                            <span className="text-xs text-blue-600 ml-1">
-                                              (Editável)
+                                          {cattleCount > 1 && (
+                                            <span className={`text-xs font-medium ${allCattleVoted ? 'text-green-600' : 'text-orange-600'}`}>
+                                              {passwordVotes.length}/{cattleCount} bois
                                             </span>
                                           )}
                                         </div>
-                                      )}
+                                      </div>
                                     </div>
 
-                                    {!existingVote ? (
-                                      <div className="space-y-2">
-                                        <Button
-                                          size="sm"
-                                          className="w-full bg-green-600 hover:bg-green-700"
-                                          onClick={() =>
-                                            handleVote(
-                                              password.id,
-                                              JudgeVoteEnum.VALID
-                                            )
-                                          }
-                                          disabled={
-                                            submittingVote === password.id
-                                          }
-                                        >
-                                          {submittingVote === password.id ? (
-                                            "Enviando..."
-                                          ) : (
-                                            <>
-                                              <ThumbsUp className="h-4 w-4 mr-1" />
-                                              Valeu o boi
-                                            </>
-                                          )}
-                                        </Button>
+                                    {/* Coluna direita: Área de votação */}
+                                    <div className="flex-1">
+                                      {cattleCount > 1 ? (
+                                        // Múltiplos bois por senha
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {Array.from({ length: cattleCount }, (_, i) => i + 1).map((cattleNum) => {
+                                            const existingVote = getExistingVote(password.id, cattleNum);
+                                            const voteInfo = existingVote ? getVoteInfo(existingVote.vote) : null;
+                                            const VoteIcon = voteInfo?.icon;
+                                            const canChange = canChangeVote(existingVote);
+                                            const voteKey = `${password.id}-${cattleNum}`;
 
-                                        <div className="grid grid-cols-2 gap-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
-                                            onClick={() =>
-                                              handleVote(
-                                                password.id,
-                                                JudgeVoteEnum.NULL
-                                              )
-                                            }
-                                            disabled={
-                                              submittingVote === password.id
-                                            }
-                                          >
-                                            <Ban className="h-3 w-3 mr-1" />
-                                            Nulo
-                                          </Button>
-
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                            onClick={() =>
-                                              handleVote(
-                                                password.id,
-                                                JudgeVoteEnum.TV
-                                              )
-                                            }
-                                            disabled={
-                                              submittingVote === password.id
-                                            }
-                                          >
-                                            <Tv className="h-3 w-3 mr-1" />
-                                            TV
-                                          </Button>
+                                            return (
+                                              <div key={cattleNum} className="p-2 bg-muted/30 rounded-lg border">
+                                                <div className="flex items-center justify-between mb-2">
+                                                  <span className="text-sm font-semibold">Boi {cattleNum}</span>
+                                                  {existingVote && VoteIcon && (
+                                                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${voteInfo.bgColor}`}>
+                                                      <VoteIcon className={`h-3 w-3 ${voteInfo.color}`} />
+                                                      <span className={`text-xs font-medium ${voteInfo.color}`}>{voteInfo.label}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                {!existingVote ? (
+                                                  <div className="grid grid-cols-4 gap-1">
+                                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.VALID, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <ThumbsUp className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.NULL, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <Ban className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.TV, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <Tv className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.DID_NOT_RUN, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <SkipForward className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                ) : canChange ? (
+                                                  <div className="grid grid-cols-4 gap-1">
+                                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.VALID, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <ThumbsUp className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.NULL, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <Ban className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.DID_NOT_RUN, cattleNum)} disabled={submittingVote === voteKey}>
+                                                      <SkipForward className="h-3 w-3" />
+                                                    </Button>
+                                                    <span className="text-xs text-blue-600 flex items-center justify-center">Editável</span>
+                                                  </div>
+                                                ) : (
+                                                  <p className="text-xs text-green-600 text-center">Votado</p>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
                                         </div>
+                                      ) : (
+                                        // Apenas 1 boi por senha
+                                        (() => {
+                                          const existingVote = getExistingVote(password.id, 1);
+                                          const voteInfo = existingVote ? getVoteInfo(existingVote.vote) : null;
+                                          const VoteIcon = voteInfo?.icon;
+                                          const canChange = canChangeVote(existingVote);
+                                          const voteKey = `${password.id}-1`;
 
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                                          onClick={() =>
-                                            handleVote(
-                                              password.id,
-                                              JudgeVoteEnum.DID_NOT_RUN
-                                            )
-                                          }
-                                          disabled={
-                                            submittingVote === password.id
-                                          }
-                                        >
-                                          <SkipForward className="h-4 w-4 mr-1" />
-                                          Não Correu
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <div className="text-center py-2">
-                                          <p className="text-sm font-medium text-muted-foreground">
-                                            Voto registrado
-                                          </p>
-                                          {canChange && (
-                                            <p className="text-xs text-blue-600 mt-1">
-                                              Você pode alterar este voto
-                                            </p>
-                                          )}
-                                        </div>
-
-                                        {canChange ? (
-                                          // Mostrar opções de voto apenas se pode alterar (voto anterior é TV)
-                                          <>
-                                            <Button
-                                              size="sm"
-                                              className="w-full bg-green-600 hover:bg-green-700"
-                                              onClick={() =>
-                                                handleUpdateVote(
-                                                  existingVote.id,
-                                                  password.id,
-                                                  JudgeVoteEnum.VALID
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote === password.id
-                                              }
-                                            >
-                                              {submittingVote ===
-                                              password.id ? (
-                                                "Alterando..."
-                                              ) : (
-                                                <>
-                                                  <ThumbsUp className="h-4 w-4 mr-1" />
-                                                  Valeu o boi
-                                                </>
+                                          return (
+                                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                                              {existingVote && VoteIcon && (
+                                                <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${voteInfo.bgColor}`}>
+                                                  <VoteIcon className={`h-4 w-4 ${voteInfo.color}`} />
+                                                  <span className={`text-sm font-medium ${voteInfo.color}`}>{voteInfo.label}</span>
+                                                  {canChange && <span className="text-xs text-blue-600 ml-1">(Editável)</span>}
+                                                </div>
                                               )}
-                                            </Button>
-
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
-                                                onClick={() =>
-                                                  handleUpdateVote(
-                                                    existingVote.id,
-                                                    password.id,
-                                                    JudgeVoteEnum.NULL
-                                                  )
-                                                }
-                                                disabled={
-                                                  submittingVote === password.id
-                                                }
-                                              >
-                                                <Ban className="h-3 w-3 mr-1" />
-                                                Nulo
-                                              </Button>
-
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-red-600 border-red-200 hover:bg-red-50"
-                                                onClick={() =>
-                                                  handleUpdateVote(
-                                                    existingVote.id,
-                                                    password.id,
-                                                    JudgeVoteEnum.DID_NOT_RUN
-                                                  )
-                                                }
-                                                disabled={
-                                                  submittingVote === password.id
-                                                }
-                                              >
-                                                <SkipForward className="h-3 w-3 mr-1" />
-                                                Não Correu
-                                              </Button>
+                                              {!existingVote ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleVote(password.id, JudgeVoteEnum.VALID, 1)} disabled={submittingVote === voteKey}>
+                                                    <ThumbsUp className="h-4 w-4 mr-1" />Valeu
+                                                  </Button>
+                                                  <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleVote(password.id, JudgeVoteEnum.NULL, 1)} disabled={submittingVote === voteKey}>
+                                                    <Ban className="h-4 w-4 mr-1" />Zero
+                                                  </Button>
+                                                  <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleVote(password.id, JudgeVoteEnum.TV, 1)} disabled={submittingVote === voteKey}>
+                                                    <Tv className="h-4 w-4 mr-1" />TV
+                                                  </Button>
+                                                  <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleVote(password.id, JudgeVoteEnum.DID_NOT_RUN, 1)} disabled={submittingVote === voteKey}>
+                                                    <SkipForward className="h-4 w-4 mr-1" />Retorno
+                                                  </Button>
+                                                </div>
+                                              ) : canChange ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.VALID, 1)} disabled={submittingVote === voteKey}>
+                                                    <ThumbsUp className="h-4 w-4 mr-1" />Valeu
+                                                  </Button>
+                                                  <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.NULL, 1)} disabled={submittingVote === voteKey}>
+                                                    <Ban className="h-4 w-4 mr-1" />Zero
+                                                  </Button>
+                                                  <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.DID_NOT_RUN, 1)} disabled={submittingVote === voteKey}>
+                                                    <SkipForward className="h-4 w-4 mr-1" />Retorno
+                                                  </Button>
+                                                </div>
+                                              ) : null}
                                             </div>
-                                          </>
-                                        ) : (
-                                          <div className="text-center py-2">
-                                            <p className="text-sm text-muted-foreground">
-                                              Voto finalizado
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </CardContent>
-                                </Card>
+                                          );
+                                        })()
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>

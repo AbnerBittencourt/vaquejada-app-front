@@ -105,8 +105,10 @@ const EventStatsCards = ({ eventStats }: { eventStats }) => (
 
 const PasswordCard = ({
   password,
+  runnerName,
 }: {
   password: PasswordVoteSummaryResponse;
+  runnerName: string;
 }) => {
   const voteStats = useMemo(
     () => getVoteStatsForPassword(password),
@@ -114,106 +116,95 @@ const PasswordCard = ({
   );
 
   return (
-    <Card
-      key={password.passwordId}
-      className="relative hover:border-primary/20 transition-colors"
-    >
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Key className="h-5 w-5 text-primary" />
-          Senha #{password.passwordNumber}
-        </CardTitle>
-        <CardDescription>
-          {getCategoryNameMap(password.categoryName)} • R${" "}
-          {password.passwordPrice}
-        </CardDescription>
-      </CardHeader>
+    <div className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow">
+      {/* Layout horizontal: Info à esquerda, Votos à direita */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+        {/* Coluna esquerda: Número da senha e info do corredor */}
+        <div className="flex-shrink-0 lg:w-48">
+          {/* Número da senha em destaque */}
+          <div className="text-center lg:text-left mb-2">
+            <span className="text-3xl font-bold text-primary">#{password.passwordNumber}</span>
+          </div>
+          {/* Info do corredor */}
+          <div className="text-center lg:text-left">
+            <p className="text-sm font-medium text-foreground">{runnerName}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {getCategoryNameMap(password.categoryName)} • R$ {password.passwordPrice}
+            </p>
+            <div className="flex items-center justify-center lg:justify-start gap-2 mt-2">
+              {voteStats.total > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    voteStats.result === "VALID"
+                      ? "bg-green-100 text-green-800"
+                      : voteStats.result === "NULL"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : voteStats.result === "TV"
+                      ? "bg-blue-100 text-blue-800"
+                      : voteStats.result === "DID_NOT_RUN"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {voteStats.resultLabel}
+                </span>
+              )}
+              <span className="text-sm font-bold text-primary">{password.passwordPoints} pts</span>
+            </div>
+          </div>
+        </div>
 
-      <CardContent className="pb-3">
-        <div className="flex items-center justify-between mb-4">
-          {voteStats.total > 0 && (
-            <div
-              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                voteStats.result === "VALID"
-                  ? "bg-green-100 text-green-800"
-                  : voteStats.result === "NULL"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : voteStats.result === "TV"
-                  ? "bg-blue-100 text-blue-800"
-                  : voteStats.result === "DID_NOT_RUN"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {voteStats.resultLabel}
+        {/* Coluna direita: Votos dos juízes */}
+        <div className="flex-1">
+          {voteStats.total > 0 ? (
+            <div className="space-y-3">
+              {/* Resumo de votos */}
+              <div className="flex flex-wrap gap-3 text-xs">
+                <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                  <ThumbsUp className="h-3 w-3" />
+                  <span className="font-medium">{voteStats.valid} Valeu</span>
+                </div>
+                <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full">
+                  <Ban className="h-3 w-3" />
+                  <span className="font-medium">{voteStats.null} Zero</span>
+                </div>
+                <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                  <Tv className="h-3 w-3" />
+                  <span className="font-medium">{voteStats.tv} TV</span>
+                </div>
+                <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                  <SkipForward className="h-3 w-3" />
+                  <span className="font-medium">{voteStats.didNotRun} Retorno</span>
+                </div>
+              </div>
+
+              {/* Votos individuais */}
+              <div className="flex flex-wrap gap-2">
+                {password.votes.map((vote) => {
+                  const voteInfo = getVoteInfo(vote.vote);
+                  const VoteIcon = voteInfo.icon;
+
+                  return (
+                    <div
+                      key={vote.judgeId}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${voteInfo.bgColor}`}
+                    >
+                      <span className="text-xs truncate max-w-20">{vote.judgeName}:</span>
+                      <VoteIcon className={`h-3 w-3 ${voteInfo.color}`} />
+                      <span className={`text-xs font-medium ${voteInfo.color}`}>{voteInfo.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center lg:justify-start py-2">
+              <p className="text-sm text-muted-foreground">Aguardando votos dos juízes...</p>
             </div>
           )}
         </div>
-
-        <div className="flex items-center justify-between mb-3 p-2 bg-muted/50 rounded-lg">
-          <span className="text-sm font-medium">Pontuação:</span>
-          <span className="text-lg font-bold text-primary">
-            {password.passwordPoints} pts
-          </span>
-        </div>
-
-        {voteStats.total > 0 ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-1 text-green-600">
-                <ThumbsUp className="h-3 w-3" />
-                <span>{voteStats.valid}</span>
-              </div>
-              <div className="flex items-center gap-1 text-yellow-600">
-                <Ban className="h-3 w-3" />
-                <span>{voteStats.null}</span>
-              </div>
-              <div className="flex items-center gap-1 text-blue-600">
-                <Tv className="h-3 w-3" />
-                <span>{voteStats.tv}</span>
-              </div>
-              <div className="flex items-center gap-1 text-red-600">
-                <SkipForward className="h-3 w-3" />
-                <span>{voteStats.didNotRun}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                Votos dos juízes:
-              </p>
-              {password.votes.map((vote) => {
-                const voteInfo = getVoteInfo(vote.vote);
-                const VoteIcon = voteInfo.icon;
-
-                return (
-                  <div
-                    key={vote.judgeId}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span className="truncate flex-1">{vote.judgeName}</span>
-                    <div
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full ${voteInfo.bgColor}`}
-                    >
-                      <VoteIcon className={`h-3 w-3 ${voteInfo.color}`} />
-                      <span className={`font-medium ${voteInfo.color}`}>
-                        {voteInfo.label}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground">
-              Aguardando votos dos juízes...
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
@@ -270,9 +261,9 @@ const RunnerCard = ({
 
     {isExpanded && (
       <CardContent className="pt-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 mt-4">
+        <div className="space-y-3 mt-4">
           {runner.passwords.map((password) => (
-            <PasswordCard key={password.passwordId} password={password} />
+            <PasswordCard key={password.passwordId} password={password} runnerName={runner.runnerName} />
           ))}
         </div>
       </CardContent>
@@ -322,7 +313,7 @@ const getVoteInfo = (vote: string) => {
       icon: ThumbsUp,
     },
     [JudgeVoteEnum.NULL]: {
-      label: "Nulo",
+      label: "Zero",
       color: "text-yellow-600",
       bgColor: "bg-yellow-100",
       icon: Ban,
@@ -334,7 +325,7 @@ const getVoteInfo = (vote: string) => {
       icon: Tv,
     },
     [JudgeVoteEnum.DID_NOT_RUN]: {
-      label: "Boi Não Quis Correr",
+      label: "Retorno",
       color: "text-red-600",
       bgColor: "bg-red-100",
       icon: SkipForward,
@@ -367,11 +358,11 @@ const getVoteStatsForPassword = (password: PasswordVoteSummaryResponse) => {
   if (valid > nullCount && valid > tv && valid > didNotRun) {
     return { ...stats, result: "VALID", resultLabel: "Valeu o Boi" };
   } else if (nullCount > valid && nullCount > tv && nullCount > didNotRun) {
-    return { ...stats, result: "NULL", resultLabel: "Nulo" };
+    return { ...stats, result: "NULL", resultLabel: "Zero" };
   } else if (tv > valid && tv > nullCount && tv > didNotRun) {
     return { ...stats, result: "TV", resultLabel: "TV" };
   } else if (didNotRun > valid && didNotRun > nullCount && didNotRun > tv) {
-    return { ...stats, result: "DID_NOT_RUN", resultLabel: "Não Correu" };
+    return { ...stats, result: "DID_NOT_RUN", resultLabel: "Retorno" };
   } else {
     return { ...stats, result: "TIE", resultLabel: "Empate" };
   }
@@ -707,6 +698,12 @@ const SpeakerPage = () => {
                             {formatDate(event.endAt)}
                           </span>
                         </div>
+                        {event.cattlePerPassword && (
+                          <div className="flex items-center gap-2 text-sm text-primary font-medium mt-2">
+                            <Award className="h-4 w-4" />
+                            <span>{event.cattlePerPassword} boi(s) por senha</span>
+                          </div>
+                        )}
                         <div className="mt-2">
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getEventStatusColors(
@@ -755,6 +752,14 @@ const SpeakerPage = () => {
                   {getLocationInfo(selectedEvent.location).state &&
                     `, ${getLocationInfo(selectedEvent.location).state}`}
                 </p>
+                {selectedEvent.cattlePerPassword && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20">
+                      <Award className="h-4 w-4" />
+                      {selectedEvent.cattlePerPassword} boi(s) por senha
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -212,6 +212,9 @@ export interface JudgeEvent {
   status: EventStatusEnum;
   isActive: boolean;
   bannerUrl: string;
+  cattlePerPassword?: number;
+  useAbvaqRules?: boolean;
+  customRules?: string;
   judges: Array<{
     id: string;
     name: string;

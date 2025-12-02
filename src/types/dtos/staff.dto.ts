@@ -10,6 +10,7 @@ export interface JudgeVoteRequest {
   eventId: string;
   passwordId: string;
   vote: JudgeVoteEnum;
+  cattleNumber?: number;
   comments?: string;
 }
 
@@ -19,6 +20,7 @@ export interface JudgeVoteResponse {
   eventId: string;
   passwordId: string;
   vote: JudgeVoteEnum;
+  cattleNumber?: number;
   comments?: string;
   createdAt: string;
 }
@@ -54,6 +56,9 @@ export interface SpeakerEvent {
   endAt: string;
   status: EventStatusEnum;
   bannerUrl?: string;
+  cattlePerPassword?: number;
+  useAbvaqRules?: boolean;
+  customRules?: string;
   judges: Judge[];
   runners: Runner[];
   createdAt: string;

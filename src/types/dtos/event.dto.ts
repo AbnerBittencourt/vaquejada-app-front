@@ -13,6 +13,9 @@ export class CreateEventDto {
   bannerUrl?: string;
   isPublic?: boolean;
   organizerId?: string;
+  cattlePerPassword?: number;
+  useAbvaqRules?: boolean;
+  customRules?: string;
 }
 
 export interface UploadBannerResponse {

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Calendar,
   Plus,
@@ -20,6 +21,7 @@ import {
   Upload,
   X,
   Image,
+  BookOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -65,6 +67,9 @@ export const CriarEventoModal = ({
     status: EventStatusEnum.SCHEDULED,
     bannerUrl: "",
     isPublic: true,
+    cattlePerPassword: "",
+    useAbvaqRules: true,
+    customRules: "",
   });
 
   const [selectedImage, setSelectedImage] = useState<{
@@ -260,6 +265,14 @@ export const CriarEventoModal = ({
         if (formData.city) formDataToSend.append("city", formData.city);
         if (formData.state) formDataToSend.append("state", formData.state);
 
+        if (formData.cattlePerPassword) {
+          formDataToSend.append("cattlePerPassword", formData.cattlePerPassword);
+        }
+        formDataToSend.append("useAbvaqRules", formData.useAbvaqRules.toString());
+        if (!formData.useAbvaqRules && formData.customRules) {
+          formDataToSend.append("customRules", formData.customRules);
+        }
+
         formDataToSend.append("banner", selectedImage.file);
 
         response = await createEventWithBanner(formDataToSend);
@@ -278,6 +291,11 @@ export const CriarEventoModal = ({
           purchaseClosedAt: new Date(formData.purchaseClosedAt).toISOString(),
           status: formData.status,
           isPublic: formData.isPublic,
+          cattlePerPassword: formData.cattlePerPassword
+            ? parseInt(formData.cattlePerPassword)
+            : undefined,
+          useAbvaqRules: formData.useAbvaqRules,
+          customRules: !formData.useAbvaqRules ? formData.customRules : undefined,
         };
 
         response = await createEvent(eventData);
@@ -339,6 +357,9 @@ export const CriarEventoModal = ({
       status: EventStatusEnum.SCHEDULED,
       bannerUrl: "",
       isPublic: true,
+      cattlePerPassword: "",
+      useAbvaqRules: true,
+      customRules: "",
     });
 
     if (selectedImage?.preview) {
@@ -748,6 +769,99 @@ export const CriarEventoModal = ({
                       <SelectItem value="private">Privado</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Regras do Evento */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Regras do Evento
+              </h3>
+
+              <div className="space-y-4">
+                {/* Quantidade de Boi por Senha */}
+                <div className="space-y-2">
+                  <Label htmlFor="cattlePerPassword" className="text-sm font-medium">
+                    Quantidade de Boi por Senha
+                  </Label>
+                  <Input
+                    id="cattlePerPassword"
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 2"
+                    value={formData.cattlePerPassword}
+                    onChange={(e) =>
+                      handleInputChange("cattlePerPassword", e.target.value)
+                    }
+                    className="rounded-xl border-2 focus:border-primary/50 w-full md:w-1/3"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Quantidade de bois que o juiz irá avaliar por senha/passada
+                  </p>
+                </div>
+
+                {/* Checkbox Regras ABVAQ */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="useAbvaqRules"
+                      checked={formData.useAbvaqRules}
+                      onCheckedChange={(checked) =>
+                        handleInputChange("useAbvaqRules", checked === true)
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="useAbvaqRules"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        Usar regras da ABVAQ
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Aplicar as regras oficiais da Associação Brasileira de Vaquejada
+                      </p>
+                    </div>
+                  </div>
+
+                  {formData.useAbvaqRules && (
+                    <div className="ml-7 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                      <p className="text-sm text-muted-foreground">
+                        As regras oficiais da ABVAQ serão aplicadas a este evento.{" "}
+                        <a
+                          href="https://abvaq.com.br/regulamento"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Ver regulamento completo
+                        </a>
+                      </p>
+                    </div>
+                  )}
+
+                  {!formData.useAbvaqRules && (
+                    <div className="ml-7 space-y-2">
+                      <Label htmlFor="customRules" className="text-sm font-medium">
+                        Regras Personalizadas *
+                      </Label>
+                      <Textarea
+                        id="customRules"
+                        placeholder="Descreva as regras específicas deste evento..."
+                        rows={4}
+                        value={formData.customRules}
+                        onChange={(e) =>
+                          handleInputChange("customRules", e.target.value)
+                        }
+                        className="rounded-xl border-2 focus:border-primary/50"
+                        required={!formData.useAbvaqRules}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Insira as regras que serão aplicadas neste evento
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
