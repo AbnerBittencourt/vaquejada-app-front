@@ -23,12 +23,14 @@ import {
   CreditCard,
   Loader2,
 } from "lucide-react";
+import { useRef } from "react";
 
 const CheckoutSuccess = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(true);
+  const webhookTriggered = useRef(false);
 
   // Parâmetros do Mercado Pago
   const paymentData = {
@@ -43,85 +45,50 @@ const CheckoutSuccess = () => {
   };
 
   useEffect(() => {
-    // Efeito de confete ao carregar a página
-    // Para adicionar confete, instale: npm install canvas-confetti @types/canvas-confetti
-    // E descomente o código abaixo
+    const triggerWebhook = async () => {
+      if (webhookTriggered.current) return;
+      webhookTriggered.current = true;
 
-    /*
-    import confetti from "canvas-confetti";
-
-    const duration = 3 * 1000;
-    const animationEnd = Date.now() + duration;
-
-    const randomInRange = (min: number, max: number) => {
-      return Math.random() * (max - min) + min;
-    };
-
-    const interval = setInterval(() => {
-      const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
-
-      const particleCount = 50 * (timeLeft / duration);
-
-      confetti({
-        particleCount,
-        startVelocity: 30,
-        spread: 360,
-        origin: {
-          x: randomInRange(0.1, 0.3),
-          y: Math.random() - 0.2,
-        },
-      });
-      confetti({
-        particleCount,
-        startVelocity: 30,
-        spread: 360,
-        origin: {
-          x: randomInRange(0.7, 0.9),
-          y: Math.random() - 0.2,
-        },
-      });
-    }, 250);
-
-    return () => clearInterval(interval);
-    */
-  }, []);
-
-  useEffect(() => {
-    // Simular processamento/validação do pagamento
-    // Aqui você deve fazer uma chamada para o backend para confirmar o pagamento
-    const processPayment = async () => {
       try {
-        // Exemplo de chamada API (descomente quando tiver o endpoint):
-        // const response = await fetch('/api/payments/confirm', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({
-        //     paymentId: paymentData.paymentId,
-        //     externalReference: paymentData.externalReference,
-        //   }),
-        // });
-        // const result = await response.json();
+        if (!paymentData.paymentId) {
+          setIsProcessing(false);
+          return;
+        }
 
-        // Simulação de delay
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const payload = {
+          action: "payment.created",
+          api_version: "v1",
+          data: {
+            id: paymentData.paymentId,
+          },
+          date_created: new Date().toISOString(),
+          id: Number(paymentData.paymentId),
+          live_mode: true,
+          type: "payment",
+          user_id: "2939523178",
+        };
 
-        setIsProcessing(false);
+        await fetch("https://vaquejada-app.onrender.com/webhooks/mp", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
       } catch (error) {
-        console.error("Erro ao processar pagamento:", error);
+        console.error("Erro ao acionar webhook:", error);
+      } finally {
         setIsProcessing(false);
       }
     };
 
     if (paymentData.status === "approved") {
-      processPayment();
+      triggerWebhook();
     } else {
       setIsProcessing(false);
     }
-  }, [paymentData.status]);
+  }, [paymentData.paymentId, paymentData.status]);
 
   const getPaymentTypeLabel = (type: string | null) => {
     const types: Record<string, string> = {
