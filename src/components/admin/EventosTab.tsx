@@ -93,6 +93,8 @@ interface CategoriaForm {
   price: string;
   maxRunners: string;
   passwordLimit: string;
+  cattleQuantity: string;
+  prize: string;
   initialPassword: string;
   finalPassword: string;
   startAt: string;
@@ -415,6 +417,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
             : "",
           currentRunners: cat.currentRunners || 0,
           passwordLimit: cat.passwordLimit || 0,
+          cattleQuantity: cat.cattleQuantity?.toString() || "0",
+          prize: cat.prize?.toString() || "0",
           isActive: cat.isActive || false,
           category: cat.category,
           initialPassword: cat.initialPassword || 0,
@@ -543,6 +547,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         price: "",
         maxRunners: "",
         passwordLimit: "",
+        cattleQuantity: "",
+        prize: "",
         initialPassword: "",
         finalPassword: "",
         startAt: "",
@@ -619,6 +625,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
           endAt: categoria.endAt,
           maxRunners: Number(categoria.maxRunners),
           passwordLimit: Number(categoria.passwordLimit),
+          cattleQuantity: Number(categoria.cattleQuantity) || 0,
+          prize: Number(categoria.prize) || 0,
           initialPassword: Number(categoria.initialPassword),
           finalPassword: Number(categoria.finalPassword),
         };
@@ -1281,6 +1289,49 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             }
                             placeholder="0"
                             min="0"
+                            className="bg-background"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`cattleQuantity-${index}`}>
+                            Qtd. de Boi
+                          </Label>
+                          <Input
+                            id={`cattleQuantity-${index}`}
+                            type="number"
+                            value={categoria.cattleQuantity}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "cattleQuantity",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0"
+                            min="0"
+                            className="bg-background"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`prize-${index}`}>
+                            Premiação (R$)
+                          </Label>
+                          <Input
+                            id={`prize-${index}`}
+                            type="number"
+                            value={categoria.prize}
+                            onChange={(e) =>
+                              updateCategoria(
+                                index,
+                                "prize",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
                             className="bg-background"
                           />
                         </div>

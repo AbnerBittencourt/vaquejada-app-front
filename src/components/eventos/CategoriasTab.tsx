@@ -450,6 +450,11 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                   <CardDescription className="text-lg font-semibold text-primary flex items-center gap-1">
                     {formatPrice(Number(categoria.price) || 0)}
                   </CardDescription>
+                  {Number(categoria.prize) > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Premiação: <span className="font-semibold text-foreground">{formatPrice(Number(categoria.prize))}</span>
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -469,6 +474,14 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                     Período: {new Date(categoria.startAt).toLocaleDateString()}{" "}
                     - {new Date(categoria.endAt).toLocaleDateString()}
                   </div>
+                  {categoria.cattleQuantity > 0 && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Quantidade de boi:{" "}
+                      <span className="font-semibold">
+                        {categoria.cattleQuantity}
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-2 text-sm text-muted-foreground">
                     Limite de senhas por participante:{" "}
                     <span className="font-semibold">
@@ -493,6 +506,10 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                   <p className="text-muted-foreground mt-1">
                     {formatPrice(Number(selectedCategory.price) || 0)} por senha
                     • {availableSpots} vagas disponíveis de {totalSpots}
+                    {selectedCategory.cattleQuantity > 0 &&
+                      ` • ${selectedCategory.cattleQuantity} boi${selectedCategory.cattleQuantity > 1 ? "s" : ""}`}
+                    {Number(selectedCategory.prize) > 0 &&
+                      ` • Premiação: ${formatPrice(Number(selectedCategory.prize))}`}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Período da categoria:{" "}

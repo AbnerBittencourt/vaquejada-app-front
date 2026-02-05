@@ -112,6 +112,8 @@ export type EventCategoryResponse = {
   maxRunners: number;
   currentRunners: number;
   passwordLimit: number;
+  cattleQuantity: number;
+  prize: number;
   isActive: boolean;
   category: CategoryResponse;
   isAvailable?: boolean;
@@ -126,6 +128,8 @@ export type ListEventCategoryResponse = {
   endAt: string;
   maxRunners: number;
   currentRunners: number;
+  cattleQuantity: number;
+  prize: number;
   isActive: boolean;
   eventId: string;
   categoryId: string;

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +22,17 @@ import {
   X,
   Image,
   BookOpen,
+  Users,
+  Gavel,
+  Mic,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   createEventWithBanner,
   createEvent,
 } from "@/lib/services/event.service";
-import { EventStatusEnum } from "@/types/enums/api-enums";
+import { EventStatusEnum, UserRoleEnum } from "@/types/enums/api-enums";
 import {
   Select,
   SelectContent,
@@ -37,6 +41,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BRstates } from "@/shared/br-states";
+import { Card } from "@/components/ui/card";
+import { listUsers } from "@/lib/services/user.service";
+import { addJudgeToEvent, addSpeakerToEvent } from "@/lib/services/staff.service";
+import { GetUserResponse } from "@/types/api";
 
 interface CriarEventoModalProps {
   onEventCreated?: () => void;
@@ -76,6 +84,30 @@ export const CriarEventoModal = ({
     file: File;
     preview: string;
   } | null>(null);
+
+  const [availableJudges, setAvailableJudges] = useState<GetUserResponse[]>([]);
+  const [availableSpeakers, setAvailableSpeakers] = useState<GetUserResponse[]>([]);
+  const [selectedJudges, setSelectedJudges] = useState<GetUserResponse[]>([]);
+  const [selectedSpeakers, setSelectedSpeakers] = useState<GetUserResponse[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      loadAvailableStaff();
+    }
+  }, [open]);
+
+  const loadAvailableStaff = async () => {
+    try {
+      const [judges, speakers] = await Promise.all([
+        listUsers({ role: UserRoleEnum.JUDGE }),
+        listUsers({ role: UserRoleEnum.SPEAKER }),
+      ]);
+      setAvailableJudges(Array.isArray(judges) ? judges : []);
+      setAvailableSpeakers(Array.isArray(speakers) ? speakers : []);
+    } catch (err) {
+      console.error("Erro ao carregar staff disponível:", err);
+    }
+  };
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -302,6 +334,29 @@ export const CriarEventoModal = ({
       }
 
       if (response) {
+        const eventId = response.id;
+
+        // Adicionar juízes e locutores ao evento criado
+        if (eventId) {
+          const staffPromises: Promise<void>[] = [];
+          for (const judge of selectedJudges) {
+            staffPromises.push(addJudgeToEvent(eventId, judge.id));
+          }
+          for (const speaker of selectedSpeakers) {
+            staffPromises.push(addSpeakerToEvent(eventId, speaker.id));
+          }
+          try {
+            await Promise.all(staffPromises);
+          } catch (staffError) {
+            console.error("Erro ao adicionar staff:", staffError);
+            toast({
+              title: "Aviso",
+              description: "Evento criado, mas houve erro ao adicionar alguns membros da equipe.",
+              variant: "destructive",
+            });
+          }
+        }
+
         toast({
           title: "Evento criado com sucesso!",
           description: selectedImage
@@ -366,6 +421,8 @@ export const CriarEventoModal = ({
       URL.revokeObjectURL(selectedImage.preview);
     }
     setSelectedImage(null);
+    setSelectedJudges([]);
+    setSelectedSpeakers([]);
   };
 
   const getMinDate = () => {
@@ -770,6 +827,138 @@ export const CriarEventoModal = ({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            {/* Equipe do Evento */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Equipe do Evento
+              </h3>
+
+              {/* Juízes */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Gavel className="h-4 w-4" />
+                    Juízes
+                  </Label>
+                  <Select
+                    value=""
+                    onValueChange={(userId) => {
+                      const judge = availableJudges.find((j) => j.id === userId);
+                      if (judge && !selectedJudges.some((j) => j.id === userId)) {
+                        setSelectedJudges((prev) => [...prev, judge]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-64 rounded-xl border-2 focus:border-primary/50">
+                      <SelectValue placeholder="Selecionar juiz..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableJudges
+                        .filter((j) => !selectedJudges.some((s) => s.id === j.id))
+                        .map((judge) => (
+                          <SelectItem key={judge.id} value={judge.id}>
+                            {judge.name} - {judge.email}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedJudges.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {selectedJudges.map((judge) => (
+                      <Card key={judge.id} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{judge.name}</p>
+                            <p className="text-xs text-muted-foreground">{judge.email}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setSelectedJudges((prev) =>
+                                prev.filter((j) => j.id !== judge.id)
+                              )
+                            }
+                            className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nenhum juiz selecionado</p>
+                )}
+              </div>
+
+              {/* Locutores */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Mic className="h-4 w-4" />
+                    Locutores
+                  </Label>
+                  <Select
+                    value=""
+                    onValueChange={(userId) => {
+                      const speaker = availableSpeakers.find((s) => s.id === userId);
+                      if (speaker && !selectedSpeakers.some((s) => s.id === userId)) {
+                        setSelectedSpeakers((prev) => [...prev, speaker]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-64 rounded-xl border-2 focus:border-primary/50">
+                      <SelectValue placeholder="Selecionar locutor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSpeakers
+                        .filter((s) => !selectedSpeakers.some((sel) => sel.id === s.id))
+                        .map((speaker) => (
+                          <SelectItem key={speaker.id} value={speaker.id}>
+                            {speaker.name} - {speaker.email}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedSpeakers.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {selectedSpeakers.map((speaker) => (
+                      <Card key={speaker.id} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{speaker.name}</p>
+                            <p className="text-xs text-muted-foreground">{speaker.email}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setSelectedSpeakers((prev) =>
+                                prev.filter((s) => s.id !== speaker.id)
+                              )
+                            }
+                            className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nenhum locutor selecionado</p>
+                )}
               </div>
             </div>
 

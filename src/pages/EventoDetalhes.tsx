@@ -20,6 +20,7 @@ import {
   UserCheck,
   AlertTriangle,
   ImageOff,
+  ExternalLink,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -503,22 +504,59 @@ const EventoDetalhes = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="aspect-video bg-muted/30 rounded-xl border flex items-center justify-center mb-6 transition-all duration-200 hover:bg-muted/40">
-                      {evento.address || evento.city ? (
-                        <div className="text-center p-6">
-                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-200 hover:bg-primary/20">
-                            <MapPin className="h-8 w-8 text-primary" />
-                          </div>
-                          <h3 className="text-lg font-semibold mb-2 text-foreground">
-                            Local do Evento
-                          </h3>
-                          <p className="text-muted-foreground text-base">
-                            {evento.address && `${evento.address}`}
-                            {evento.city &&
-                              `, ${evento.city} - ${evento.state}`}
-                          </p>
+                    {evento.address || evento.city ? (
+                      <>
+                        <div className="aspect-video rounded-xl border overflow-hidden mb-4">
+                          <iframe
+                            src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                              [evento.address, evento.city, evento.state]
+                                .filter(Boolean)
+                                .join(", ")
+                            )}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            allowFullScreen
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            title="Localização do evento no Google Maps"
+                          />
                         </div>
-                      ) : (
+
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/30 rounded-xl border">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                              <MapPin className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-foreground">
+                                Local do Evento
+                              </p>
+                              <p className="text-muted-foreground text-sm">
+                                {[evento.address, evento.city && evento.state ? `${evento.city} - ${evento.state}` : evento.city]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                              [evento.address, evento.city, evento.state]
+                                .filter(Boolean)
+                                .join(", ")
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <ExternalLink className="h-4 w-4" />
+                              Abrir no Google Maps
+                            </Button>
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="aspect-video bg-muted/30 rounded-xl border flex items-center justify-center">
                         <div className="text-center p-6">
                           <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                           <h3 className="text-lg font-semibold mb-2">
@@ -528,8 +566,8 @@ const EventoDetalhes = () => {
                             O local será anunciado em breve
                           </p>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
