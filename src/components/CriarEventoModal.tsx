@@ -311,14 +311,18 @@ export const CriarEventoModal = ({
   const loadCategories = async () => {
     try {
       const response = await listCategories();
-      const cats = response.data || response;
-      if (Array.isArray(cats)) {
+      if (response.data && Array.isArray(response.data)) {
         setAvailableCategories(
-          cats.map((cat: any) => ({
+          response.data.map((cat: any) => ({
             id: cat.category?.id || cat.id,
-            name: getCategoryNameMap(
-              (cat.name || cat.category?.name) as CategoryNameEnum
-            ),
+            name: getCategoryNameMap(cat.name as CategoryNameEnum),
+          }))
+        );
+      } else if (Array.isArray(response)) {
+        setAvailableCategories(
+          response.map((cat: any) => ({
+            id: cat.category?.id || cat.id,
+            name: getCategoryNameMap(cat.name as CategoryNameEnum),
           }))
         );
       }

@@ -6,6 +6,7 @@ export class CreateEventDto {
   endAt: string;
   purchaseClosedAt: string;
   status?: EventStatusEnum;
+  prize?: string;
   address?: string;
   city?: string;
   state?: string;
