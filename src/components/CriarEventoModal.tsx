@@ -1182,6 +1182,46 @@ export const CriarEventoModal = ({
                   </Select>
                 </div>
               </div>
+
+              {/* Mapa do Google */}
+              {(formData.address || formData.city) && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Localização no Mapa
+                  </Label>
+                  <div className="rounded-xl overflow-hidden border-2 border-muted">
+                    <iframe
+                      title="Localização do evento"
+                      width="100%"
+                      height="250"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                        [formData.address, formData.city, formData.state]
+                          .filter(Boolean)
+                          .join(", ")
+                      )}&z=15&ie=UTF8&iwloc=&output=embed`}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [formData.address, formData.city, formData.state]
+                          .filter(Boolean)
+                          .join(", ")
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <MapPin className="h-3 w-3" />
+                      Abrir no Google Maps
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Datas e Horários */}
