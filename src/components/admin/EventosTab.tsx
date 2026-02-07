@@ -638,8 +638,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         }
       }
 
-      console.log("Staff a ser salvo:", eventStaff);
-
       toast({
         title: "Sucesso",
         description: "Evento atualizado com sucesso!",

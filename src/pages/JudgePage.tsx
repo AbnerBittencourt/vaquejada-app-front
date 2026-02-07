@@ -112,7 +112,6 @@ const JudgePage = () => {
 
       try {
         const response = await listJudgeEvents(user.id);
-        console.log("Eventos do juiz:", response);
         setEvents(response.events || []);
       } catch (err) {
         console.error("Erro ao carregar eventos do juiz:", err);
@@ -201,7 +200,6 @@ const JudgePage = () => {
     const voteKey = cattleNumber ? `${passwordId}-${cattleNumber}` : passwordId;
     setSubmittingVote(voteKey);
 
-    console.log("Atualizando voto:", { scoreId, passwordId, newVote, cattleNumber });
     try {
       await updateJudgeVote(scoreId, {
         vote: newVote,

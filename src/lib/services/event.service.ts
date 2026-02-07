@@ -7,7 +7,6 @@ export async function listEvents() {
     const response = await api.get("/events");
     return response.data;
   } catch (error) {
-    console.log(error);
     throw new Error("Erro ao listar eventos");
   }
 }

@@ -26,13 +26,21 @@ import {
   Gavel,
   Mic,
   Trash2,
+  Tag,
+  Search,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   createEventWithBanner,
   createEvent,
+  createEventCategory,
 } from "@/lib/services/event.service";
-import { EventStatusEnum, UserRoleEnum } from "@/types/enums/api-enums";
+import {
+  EventStatusEnum,
+  UserRoleEnum,
+  CategoryNameEnum,
+  UserNatureEnum,
+} from "@/types/enums/api-enums";
 import {
   Select,
   SelectContent,
@@ -42,14 +50,86 @@ import {
 } from "@/components/ui/select";
 import { BRstates } from "@/shared/br-states";
 import { Card } from "@/components/ui/card";
-import { listUsers } from "@/lib/services/user.service";
-import { addJudgeToEvent, addSpeakerToEvent } from "@/lib/services/staff.service";
+import { listUsers, createFullUser } from "@/lib/services/user.service";
+import {
+  addJudgeToEvent,
+  addSpeakerToEvent,
+} from "@/lib/services/staff.service";
+import { listCategories } from "@/lib/services/category.service";
 import { GetUserResponse } from "@/types/api";
+import { getCategoryNameMap } from "@/types/enums/enum-maps";
 
 interface CriarEventoModalProps {
   onEventCreated?: () => void;
   trigger?: React.ReactNode;
 }
+
+interface EventCategoryForm {
+  categoryId: string;
+  categoryName: string;
+  price: string;
+  maxRunners: string;
+  passwordLimit: string;
+  cattleQuantity: string;
+  prize: string;
+  initialPassword: string;
+  finalPassword: string;
+  startAt: string;
+  endAt: string;
+}
+
+interface NewStaffForm {
+  name: string;
+  email: string;
+  cpf: string;
+  phone: string;
+  password: string;
+}
+
+const emptyStaffForm: NewStaffForm = {
+  name: "",
+  email: "",
+  cpf: "",
+  phone: "",
+  password: "",
+};
+
+const loadGoogleMapsScript = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      reject(new Error("No API key"));
+      return;
+    }
+
+    if ((window as any).google?.maps?.places) {
+      resolve();
+      return;
+    }
+
+    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      const interval = setInterval(() => {
+        if ((window as any).google?.maps?.places) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(interval);
+        reject(new Error("Timeout"));
+      }, 10000);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google Maps"));
+    document.head.appendChild(script);
+  });
+};
 
 export const CriarEventoModal = ({
   onEventCreated,
@@ -61,7 +141,6 @@ export const CriarEventoModal = ({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estados para os campos do formulário
   const [formData, setFormData] = useState({
     name: "",
     prize: "",
@@ -86,13 +165,133 @@ export const CriarEventoModal = ({
   } | null>(null);
 
   const [availableJudges, setAvailableJudges] = useState<GetUserResponse[]>([]);
-  const [availableSpeakers, setAvailableSpeakers] = useState<GetUserResponse[]>([]);
+  const [availableSpeakers, setAvailableSpeakers] = useState<
+    GetUserResponse[]
+  >([]);
   const [selectedJudges, setSelectedJudges] = useState<GetUserResponse[]>([]);
-  const [selectedSpeakers, setSelectedSpeakers] = useState<GetUserResponse[]>([]);
+  const [selectedSpeakers, setSelectedSpeakers] = useState<GetUserResponse[]>(
+    []
+  );
+
+  // Google Places
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
+
+  // Create Staff
+  const [showCreateJudge, setShowCreateJudge] = useState(false);
+  const [showCreateSpeaker, setShowCreateSpeaker] = useState(false);
+  const [creatingStaff, setCreatingStaff] = useState(false);
+  const [newJudgeForm, setNewJudgeForm] = useState<NewStaffForm>({
+    ...emptyStaffForm,
+  });
+  const [newSpeakerForm, setNewSpeakerForm] = useState<NewStaffForm>({
+    ...emptyStaffForm,
+  });
+
+  // Categories
+  const [availableCategories, setAvailableCategories] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [eventCategories, setEventCategories] = useState<EventCategoryForm[]>(
+    []
+  );
 
   useEffect(() => {
     if (open) {
       loadAvailableStaff();
+      loadCategories();
+    }
+  }, [open]);
+
+  // Google Places: load script
+  useEffect(() => {
+    loadGoogleMapsScript()
+      .then(() => setGoogleLoaded(true))
+      .catch(() => {});
+  }, []);
+
+  // Google Places: initialize autocomplete
+  useEffect(() => {
+    if (!open || !googleLoaded || !addressInputRef.current || autocompleteRef.current) return;
+
+    const google = (window as any).google;
+    if (!google?.maps?.places) return;
+
+    const autocomplete = new google.maps.places.Autocomplete(
+      addressInputRef.current,
+      {
+        types: ["address"],
+        componentRestrictions: { country: "br" },
+        fields: ["address_components", "formatted_address"],
+      }
+    );
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place.address_components) return;
+
+      let route = "";
+      let streetNumber = "";
+      let neighborhood = "";
+      let city = "";
+      let state = "";
+
+      for (const component of place.address_components) {
+        const types: string[] = component.types;
+        if (types.includes("route")) {
+          route = component.long_name;
+        }
+        if (types.includes("street_number")) {
+          streetNumber = component.long_name;
+        }
+        if (
+          types.includes("sublocality_level_1") ||
+          types.includes("sublocality")
+        ) {
+          neighborhood = component.long_name;
+        }
+        if (types.includes("administrative_area_level_2")) {
+          city = component.long_name;
+        }
+        if (types.includes("administrative_area_level_1")) {
+          state = component.short_name;
+        }
+      }
+
+      let address = route;
+      if (streetNumber) address += `, ${streetNumber}`;
+      if (neighborhood) address += ` - ${neighborhood}`;
+
+      if (!address && place.formatted_address) {
+        address = place.formatted_address;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        address,
+        city,
+        state,
+      }));
+    });
+
+    autocompleteRef.current = autocomplete;
+  }, [open, googleLoaded]);
+
+  // Fix z-index for Google Places dropdown inside dialog
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = ".pac-container { z-index: 10000 !important; }";
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Reset autocomplete ref when dialog closes
+  useEffect(() => {
+    if (!open) {
+      autocompleteRef.current = null;
     }
   }, [open]);
 
@@ -104,8 +303,27 @@ export const CriarEventoModal = ({
       ]);
       setAvailableJudges(Array.isArray(judges) ? judges : []);
       setAvailableSpeakers(Array.isArray(speakers) ? speakers : []);
-    } catch (err) {
-      console.error("Erro ao carregar staff disponível:", err);
+    } catch {
+      // Falha ao carregar staff
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await listCategories();
+      const cats = response.data || response;
+      if (Array.isArray(cats)) {
+        setAvailableCategories(
+          cats.map((cat: any) => ({
+            id: cat.category?.id || cat.id,
+            name: getCategoryNameMap(
+              (cat.name || cat.category?.name) as CategoryNameEnum
+            ),
+          }))
+        );
+      }
+    } catch {
+      setAvailableCategories([]);
     }
   };
 
@@ -120,7 +338,6 @@ export const CriarEventoModal = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validações da imagem
     if (!file.type.startsWith("image/")) {
       toast({
         title: "Arquivo inválido",
@@ -131,7 +348,6 @@ export const CriarEventoModal = ({
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      // 5MB
       toast({
         title: "Imagem muito grande",
         description: "A imagem deve ter no máximo 5MB",
@@ -140,7 +356,6 @@ export const CriarEventoModal = ({
       return;
     }
 
-    // Verificar dimensões da imagem
     const img = document.createElement("img");
     img.onload = () => {
       const isPortrait = img.height > img.width;
@@ -153,14 +368,9 @@ export const CriarEventoModal = ({
         return;
       }
 
-      // Criar preview e salvar arquivo
       const previewUrl = URL.createObjectURL(file);
-      setSelectedImage({
-        file,
-        preview: previewUrl,
-      });
+      setSelectedImage({ file, preview: previewUrl });
 
-      // Limpar o input file
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -182,12 +392,117 @@ export const CriarEventoModal = ({
     setSelectedImage(null);
   };
 
+  const handleCreateStaff = async (
+    role: UserRoleEnum.JUDGE | UserRoleEnum.SPEAKER
+  ) => {
+    const form = role === UserRoleEnum.JUDGE ? newJudgeForm : newSpeakerForm;
+    const label = role === UserRoleEnum.JUDGE ? "Juiz" : "Locutor";
+
+    if (!form.name || !form.email || !form.cpf || !form.phone || !form.password) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos para criar o " + label.toLowerCase(),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingStaff(true);
+    try {
+      const newUser = await createFullUser({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        cpf: form.cpf,
+        phone: form.phone,
+        role,
+        nature: UserNatureEnum.MALE,
+        city: "",
+        state: "",
+        isActive: true,
+      });
+
+      const userResponse: GetUserResponse = {
+        id: newUser.id,
+        name: form.name,
+        email: form.email,
+        cpf: form.cpf,
+        phone: form.phone,
+        role,
+        nature: UserNatureEnum.MALE,
+        city: "",
+        state: "",
+        isActive: true,
+      };
+
+      if (role === UserRoleEnum.JUDGE) {
+        setSelectedJudges((prev) => [...prev, userResponse]);
+        setAvailableJudges((prev) => [...prev, userResponse]);
+        setNewJudgeForm({ ...emptyStaffForm });
+        setShowCreateJudge(false);
+      } else {
+        setSelectedSpeakers((prev) => [...prev, userResponse]);
+        setAvailableSpeakers((prev) => [...prev, userResponse]);
+        setNewSpeakerForm({ ...emptyStaffForm });
+        setShowCreateSpeaker(false);
+      }
+
+      toast({
+        title: `${label} criado com sucesso!`,
+        description: `${form.name} foi criado e adicionado ao evento.`,
+      });
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message || `Erro ao criar ${label.toLowerCase()}`;
+      toast({
+        title: `Erro ao criar ${label.toLowerCase()}`,
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingStaff(false);
+    }
+  };
+
+  // Categories
+  const addEventCategory = () => {
+    setEventCategories((prev) => [
+      ...prev,
+      {
+        categoryId: "",
+        categoryName: "",
+        price: "",
+        maxRunners: "",
+        passwordLimit: "",
+        cattleQuantity: "",
+        prize: "",
+        initialPassword: "",
+        finalPassword: "",
+        startAt: "",
+        endAt: "",
+      },
+    ]);
+  };
+
+  const removeEventCategory = (index: number) => {
+    setEventCategories((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateEventCategoryField = (
+    index: number,
+    field: keyof EventCategoryForm,
+    value: string
+  ) => {
+    setEventCategories((prev) =>
+      prev.map((cat, i) => (i === index ? { ...cat, [field]: value } : cat))
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Validações básicas
       if (!formData.name || formData.name.length < 3) {
         toast({
           title: "Nome muito curto",
@@ -218,7 +533,6 @@ export const CriarEventoModal = ({
         return;
       }
 
-      // Validar datas
       if (!formData.startAt || !formData.endAt || !formData.purchaseClosedAt) {
         toast({
           title: "Datas obrigatórias",
@@ -271,7 +585,6 @@ export const CriarEventoModal = ({
         setUploadingImage(true);
 
         const formDataToSend = new FormData();
-
         formDataToSend.append("name", formData.name);
         formDataToSend.append("description", formData.description);
         formDataToSend.append(
@@ -298,15 +611,20 @@ export const CriarEventoModal = ({
         if (formData.state) formDataToSend.append("state", formData.state);
 
         if (formData.cattlePerPassword) {
-          formDataToSend.append("cattlePerPassword", formData.cattlePerPassword);
+          formDataToSend.append(
+            "cattlePerPassword",
+            formData.cattlePerPassword
+          );
         }
-        formDataToSend.append("useAbvaqRules", formData.useAbvaqRules.toString());
+        formDataToSend.append(
+          "useAbvaqRules",
+          formData.useAbvaqRules.toString()
+        );
         if (!formData.useAbvaqRules && formData.customRules) {
           formDataToSend.append("customRules", formData.customRules);
         }
 
         formDataToSend.append("banner", selectedImage.file);
-
         response = await createEventWithBanner(formDataToSend);
       } else {
         const eventData = {
@@ -327,17 +645,18 @@ export const CriarEventoModal = ({
             ? parseInt(formData.cattlePerPassword)
             : undefined,
           useAbvaqRules: formData.useAbvaqRules,
-          customRules: !formData.useAbvaqRules ? formData.customRules : undefined,
+          customRules: !formData.useAbvaqRules
+            ? formData.customRules
+            : undefined,
         };
-
         response = await createEvent(eventData);
       }
 
       if (response) {
         const eventId = response.id;
 
-        // Adicionar juízes e locutores ao evento criado
         if (eventId) {
+          // Add judges and speakers
           const staffPromises: Promise<void>[] = [];
           for (const judge of selectedJudges) {
             staffPromises.push(addJudgeToEvent(eventId, judge.id));
@@ -347,13 +666,42 @@ export const CriarEventoModal = ({
           }
           try {
             await Promise.all(staffPromises);
-          } catch (staffError) {
-            console.error("Erro ao adicionar staff:", staffError);
+          } catch {
             toast({
               title: "Aviso",
-              description: "Evento criado, mas houve erro ao adicionar alguns membros da equipe.",
+              description:
+                "Evento criado, mas houve erro ao adicionar alguns membros da equipe.",
               variant: "destructive",
             });
+          }
+
+          // Create event categories
+          const validCategories = eventCategories.filter(
+            (cat) => cat.categoryId && cat.price
+          );
+          if (validCategories.length > 0) {
+            const categoryPromises = validCategories.map((cat) =>
+              createEventCategory({
+                eventId,
+                categoryId: cat.categoryId,
+                price: Number(cat.price),
+                maxRunners: Number(cat.maxRunners) || 0,
+                passwordLimit: Number(cat.passwordLimit) || 0,
+                startAt:
+                  cat.startAt || new Date(formData.startAt).toISOString(),
+                endAt: cat.endAt || new Date(formData.endAt).toISOString(),
+              })
+            );
+            try {
+              await Promise.all(categoryPromises);
+            } catch {
+              toast({
+                title: "Aviso",
+                description:
+                  "Evento criado, mas houve erro ao adicionar algumas categorias.",
+                variant: "destructive",
+              });
+            }
           }
         }
 
@@ -371,9 +719,7 @@ export const CriarEventoModal = ({
           onEventCreated();
         }
       }
-    } catch (error) {
-      console.error("Erro ao criar evento:", error);
-
+    } catch (error: any) {
       let errorMessage = "Ocorreu um erro ao criar o evento. Tente novamente.";
 
       if (error.response?.status === 413) {
@@ -423,6 +769,11 @@ export const CriarEventoModal = ({
     setSelectedImage(null);
     setSelectedJudges([]);
     setSelectedSpeakers([]);
+    setEventCategories([]);
+    setShowCreateJudge(false);
+    setShowCreateSpeaker(false);
+    setNewJudgeForm({ ...emptyStaffForm });
+    setNewSpeakerForm({ ...emptyStaffForm });
   };
 
   const getMinDate = () => {
@@ -431,6 +782,117 @@ export const CriarEventoModal = ({
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const renderStaffForm = (
+    role: UserRoleEnum.JUDGE | UserRoleEnum.SPEAKER
+  ) => {
+    const form = role === UserRoleEnum.JUDGE ? newJudgeForm : newSpeakerForm;
+    const setForm =
+      role === UserRoleEnum.JUDGE ? setNewJudgeForm : setNewSpeakerForm;
+    const setShow =
+      role === UserRoleEnum.JUDGE ? setShowCreateJudge : setShowCreateSpeaker;
+    const label = role === UserRoleEnum.JUDGE ? "Juiz" : "Locutor";
+
+    return (
+      <Card className="p-4 border-2 border-primary/20 bg-primary/5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold">Novo {label}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setShow(false);
+              setForm({ ...emptyStaffForm });
+            }}
+            className="h-7 w-7 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Nome *</Label>
+            <Input
+              placeholder="Nome completo"
+              value={form.name}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="h-9 text-sm rounded-lg"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Email *</Label>
+            <Input
+              type="email"
+              placeholder="email@exemplo.com"
+              value={form.email}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+              className="h-9 text-sm rounded-lg"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">CPF *</Label>
+            <Input
+              placeholder="000.000.000-00"
+              value={form.cpf}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, cpf: e.target.value }))
+              }
+              className="h-9 text-sm rounded-lg"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Telefone *</Label>
+            <Input
+              placeholder="(00) 00000-0000"
+              value={form.phone}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, phone: e.target.value }))
+              }
+              className="h-9 text-sm rounded-lg"
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <Label className="text-xs">Senha *</Label>
+            <Input
+              type="password"
+              placeholder="Senha de acesso"
+              value={form.password}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, password: e.target.value }))
+              }
+              className="h-9 text-sm rounded-lg"
+            />
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          size="sm"
+          className="mt-3 rounded-lg"
+          onClick={() => handleCreateStaff(role)}
+          disabled={creatingStaff}
+        >
+          {creatingStaff ? (
+            <>
+              <div className="w-3 h-3 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+              Criando...
+            </>
+          ) : (
+            <>
+              <Plus className="h-3 w-3 mr-1" />
+              Criar e Adicionar
+            </>
+          )}
+        </Button>
+      </Card>
+    );
   };
 
   return (
@@ -528,13 +990,13 @@ export const CriarEventoModal = ({
                 </p>
               </div>
 
-              {/* Upload de Banner - AJUSTADO PARA PORTRAIT */}
+              {/* Upload de Banner */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">
                   Banner do Evento (Opcional)
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Formato retrato recomendado • PNG, JPG, WEBP até 5MB
+                  Formato retrato recomendado - PNG, JPG, WEBP até 5MB
                 </p>
 
                 <input
@@ -563,7 +1025,6 @@ export const CriarEventoModal = ({
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                      {/* Container portrait menor */}
                       <div className="flex justify-center">
                         <div className="relative w-48 h-64 bg-muted rounded-lg overflow-hidden border-2">
                           <img
@@ -575,7 +1036,7 @@ export const CriarEventoModal = ({
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-2 text-center">
-                        {selectedImage.file.name} •{" "}
+                        {selectedImage.file.name} -{" "}
                         {(selectedImage.file.size / 1024 / 1024).toFixed(2)}MB
                       </p>
                     </div>
@@ -594,10 +1055,9 @@ export const CriarEventoModal = ({
                           Clique para fazer upload do banner
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Formato retrato • PNG, JPG, WEBP até 5MB
+                          Formato retrato - PNG, JPG, WEBP até 5MB
                         </p>
                       </div>
-                      {/* Preview do formato portrait */}
                       <div className="flex items-center justify-center gap-4 mt-2">
                         <div className="flex flex-col items-center gap-1">
                           <div className="w-16 h-20 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
@@ -628,7 +1088,6 @@ export const CriarEventoModal = ({
                   </div>
                 )}
 
-                {/* Campo de URL manual (fallback) */}
                 {!selectedImage && (
                   <div className="space-y-2 pt-2">
                     <Label htmlFor="bannerUrl" className="text-sm font-medium">
@@ -649,30 +1108,45 @@ export const CriarEventoModal = ({
               </div>
             </div>
 
-            {/* Localização */}
+            {/* Localização com Google Places */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
                 Localização
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-sm font-medium">
-                    Endereço (Opcional)
-                  </Label>
+              <div className="space-y-2">
+                <Label htmlFor="address" className="text-sm font-medium">
+                  Endereço (Opcional)
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="address"
-                    placeholder="Rua, número, bairro"
+                    ref={addressInputRef}
+                    placeholder={
+                      googleLoaded
+                        ? "Busque o endereço pelo Google..."
+                        : "Rua, número, bairro"
+                    }
                     value={formData.address}
                     onChange={(e) =>
                       handleInputChange("address", e.target.value)
                     }
                     maxLength={500}
-                    className="rounded-xl border-2 focus:border-primary/50"
+                    className="rounded-xl border-2 focus:border-primary/50 pl-10"
                   />
                 </div>
+                {googleLoaded && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Busca via Google Places ativada - cidade e estado serão
+                    preenchidos automaticamente
+                  </p>
+                )}
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city" className="text-sm font-medium">
                     Cidade (Opcional)
@@ -844,29 +1318,50 @@ export const CriarEventoModal = ({
                     <Gavel className="h-4 w-4" />
                     Juízes
                   </Label>
-                  <Select
-                    value=""
-                    onValueChange={(userId) => {
-                      const judge = availableJudges.find((j) => j.id === userId);
-                      if (judge && !selectedJudges.some((j) => j.id === userId)) {
-                        setSelectedJudges((prev) => [...prev, judge]);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-64 rounded-xl border-2 focus:border-primary/50">
-                      <SelectValue placeholder="Selecionar juiz..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableJudges
-                        .filter((j) => !selectedJudges.some((s) => s.id === j.id))
-                        .map((judge) => (
-                          <SelectItem key={judge.id} value={judge.id}>
-                            {judge.name} - {judge.email}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value=""
+                      onValueChange={(userId) => {
+                        const judge = availableJudges.find(
+                          (j) => j.id === userId
+                        );
+                        if (
+                          judge &&
+                          !selectedJudges.some((j) => j.id === userId)
+                        ) {
+                          setSelectedJudges((prev) => [...prev, judge]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-52 rounded-xl border-2 focus:border-primary/50">
+                        <SelectValue placeholder="Selecionar juiz..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableJudges
+                          .filter(
+                            (j) => !selectedJudges.some((s) => s.id === j.id)
+                          )
+                          .map((judge) => (
+                            <SelectItem key={judge.id} value={judge.id}>
+                              {judge.name} - {judge.email}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => setShowCreateJudge(!showCreateJudge)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Novo
+                    </Button>
+                  </div>
                 </div>
+
+                {showCreateJudge && renderStaffForm(UserRoleEnum.JUDGE)}
 
                 {selectedJudges.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -875,7 +1370,9 @@ export const CriarEventoModal = ({
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-sm">{judge.name}</p>
-                            <p className="text-xs text-muted-foreground">{judge.email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {judge.email}
+                            </p>
                           </div>
                           <Button
                             type="button"
@@ -895,7 +1392,9 @@ export const CriarEventoModal = ({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Nenhum juiz selecionado</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum juiz selecionado
+                  </p>
                 )}
               </div>
 
@@ -906,29 +1405,53 @@ export const CriarEventoModal = ({
                     <Mic className="h-4 w-4" />
                     Locutores
                   </Label>
-                  <Select
-                    value=""
-                    onValueChange={(userId) => {
-                      const speaker = availableSpeakers.find((s) => s.id === userId);
-                      if (speaker && !selectedSpeakers.some((s) => s.id === userId)) {
-                        setSelectedSpeakers((prev) => [...prev, speaker]);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-64 rounded-xl border-2 focus:border-primary/50">
-                      <SelectValue placeholder="Selecionar locutor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSpeakers
-                        .filter((s) => !selectedSpeakers.some((sel) => sel.id === s.id))
-                        .map((speaker) => (
-                          <SelectItem key={speaker.id} value={speaker.id}>
-                            {speaker.name} - {speaker.email}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value=""
+                      onValueChange={(userId) => {
+                        const speaker = availableSpeakers.find(
+                          (s) => s.id === userId
+                        );
+                        if (
+                          speaker &&
+                          !selectedSpeakers.some((s) => s.id === userId)
+                        ) {
+                          setSelectedSpeakers((prev) => [...prev, speaker]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-52 rounded-xl border-2 focus:border-primary/50">
+                        <SelectValue placeholder="Selecionar locutor..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSpeakers
+                          .filter(
+                            (s) =>
+                              !selectedSpeakers.some(
+                                (sel) => sel.id === s.id
+                              )
+                          )
+                          .map((speaker) => (
+                            <SelectItem key={speaker.id} value={speaker.id}>
+                              {speaker.name} - {speaker.email}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => setShowCreateSpeaker(!showCreateSpeaker)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Novo
+                    </Button>
+                  </div>
                 </div>
+
+                {showCreateSpeaker && renderStaffForm(UserRoleEnum.SPEAKER)}
 
                 {selectedSpeakers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -936,8 +1459,12 @@ export const CriarEventoModal = ({
                       <Card key={speaker.id} className="p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{speaker.name}</p>
-                            <p className="text-xs text-muted-foreground">{speaker.email}</p>
+                            <p className="font-medium text-sm">
+                              {speaker.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {speaker.email}
+                            </p>
                           </div>
                           <Button
                             type="button"
@@ -957,9 +1484,250 @@ export const CriarEventoModal = ({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Nenhum locutor selecionado</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum locutor selecionado
+                  </p>
                 )}
               </div>
+            </div>
+
+            {/* Categorias do Evento */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-primary" />
+                  Categorias do Evento
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={addEventCategory}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar Categoria
+                </Button>
+              </div>
+
+              {eventCategories.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma categoria adicionada. Você pode adicionar categorias
+                  agora ou depois de criar o evento.
+                </p>
+              )}
+
+              {eventCategories.map((cat, index) => (
+                <Card key={index} className="p-4 border-2">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="font-semibold text-sm">
+                      {cat.categoryName || `Categoria ${index + 1}`}
+                    </h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeEventCategory(index)}
+                      className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Categoria *</Label>
+                      <Select
+                        value={cat.categoryId}
+                        onValueChange={(value) => {
+                          updateEventCategoryField(index, "categoryId", value);
+                          const found = availableCategories.find(
+                            (c) => c.id === value
+                          );
+                          if (found) {
+                            updateEventCategoryField(
+                              index,
+                              "categoryName",
+                              found.name
+                            );
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="rounded-lg border-2 h-9 text-sm">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableCategories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Preço (R$) *</Label>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={cat.price}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "price",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        step="0.01"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Máx. Participantes</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={cat.maxRunners}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "maxRunners",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Limite de Senhas</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={cat.passwordLimit}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "passwordLimit",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Qtd. de Boi</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={cat.cattleQuantity}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "cattleQuantity",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Premiação (R$)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={cat.prize}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "prize",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        step="0.01"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Senha Inicial</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={cat.initialPassword}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "initialPassword",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Senha Final</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={cat.finalPassword}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "finalPassword",
+                            e.target.value
+                          )
+                        }
+                        min="0"
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Início</Label>
+                      <Input
+                        type="datetime-local"
+                        value={cat.startAt}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "startAt",
+                            e.target.value
+                          )
+                        }
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Término</Label>
+                      <Input
+                        type="datetime-local"
+                        value={cat.endAt}
+                        onChange={(e) =>
+                          updateEventCategoryField(
+                            index,
+                            "endAt",
+                            e.target.value
+                          )
+                        }
+                        className="h-9 text-sm rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
 
             {/* Regras do Evento */}
@@ -970,9 +1738,11 @@ export const CriarEventoModal = ({
               </h3>
 
               <div className="space-y-4">
-                {/* Quantidade de Boi por Senha */}
                 <div className="space-y-2">
-                  <Label htmlFor="cattlePerPassword" className="text-sm font-medium">
+                  <Label
+                    htmlFor="cattlePerPassword"
+                    className="text-sm font-medium"
+                  >
                     Quantidade de Boi por Senha
                   </Label>
                   <Input
@@ -991,7 +1761,6 @@ export const CriarEventoModal = ({
                   </p>
                 </div>
 
-                {/* Checkbox Regras ABVAQ */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
                     <Checkbox
@@ -1009,7 +1778,8 @@ export const CriarEventoModal = ({
                         Usar regras da ABVAQ
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Aplicar as regras oficiais da Associação Brasileira de Vaquejada
+                        Aplicar as regras oficiais da Associação Brasileira de
+                        Vaquejada
                       </p>
                     </div>
                   </div>
@@ -1017,7 +1787,8 @@ export const CriarEventoModal = ({
                   {formData.useAbvaqRules && (
                     <div className="ml-7 p-3 bg-primary/5 rounded-xl border border-primary/20">
                       <p className="text-sm text-muted-foreground">
-                        As regras oficiais da ABVAQ serão aplicadas a este evento.{" "}
+                        As regras oficiais da ABVAQ serão aplicadas a este
+                        evento.{" "}
                         <a
                           href="https://abvaq.com.br/regulamento"
                           target="_blank"
@@ -1032,7 +1803,10 @@ export const CriarEventoModal = ({
 
                   {!formData.useAbvaqRules && (
                     <div className="ml-7 space-y-2">
-                      <Label htmlFor="customRules" className="text-sm font-medium">
+                      <Label
+                        htmlFor="customRules"
+                        className="text-sm font-medium"
+                      >
                         Regras Personalizadas *
                       </Label>
                       <Textarea
