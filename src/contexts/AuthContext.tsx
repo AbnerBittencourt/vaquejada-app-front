@@ -2,7 +2,7 @@ import { userLogin } from "@/lib/services/login.service";
 import { createUser, getMe } from "@/lib/services/user.service";
 import { GetUserResponse } from "@/types/api";
 import { UserRoleEnum } from "@/types/enums/api-enums";
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -25,6 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<GetUserResponse | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token && !user) {
+      getMe()
+        .then((userData) => {
+          localStorage.setItem("userId", userData.id);
+          setUser(userData);
+        })
+        .catch(() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("userId");
+        });
+    }
+  }, []);
 
   const login = async (email: string, senha: string) => {
     const response = await userLogin(email, senha);

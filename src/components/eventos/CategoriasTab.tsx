@@ -17,14 +17,29 @@ import {
   CheckCircle,
   MapPin,
   LogIn,
+  QrCode,
+  CreditCard,
+  Copy,
+  X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { EventCategoryResponse, PasswordResponse } from "@/types/api";
 import { formatPrice } from "@/utils/format-data.util";
 import { getCategoryNameMap } from "@/types/enums/enum-maps";
 import { PasswordStatusEnum } from "@/types/enums/api-enums";
 import { getCategoryPasswords } from "@/lib/services/password.service";
-import { createCheckoutProSession } from "@/lib/services/payments.service"; // ✅ novo
+import {
+  createCheckoutProSession,
+  createPixPayment,
+  PixResponse,
+} from "@/lib/services/payments.service";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CategoriasTabProps {
   eventoId: string;
@@ -40,6 +55,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [selectedCategory, setSelectedCategory] =
     useState<EventCategoryResponse | null>(null);
   const [passwords, setPasswords] = useState<PasswordResponse[]>([]);
@@ -48,6 +64,12 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
   const [selectedPasswordIds, setSelectedPasswordIds] = useState<string[]>([]);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"checkout-pro" | "pix">(
+    "checkout-pro"
+  );
+  const [pixData, setPixData] = useState<PixResponse | null>(null);
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixLoading, setPixLoading] = useState(false);
 
   useEffect(() => {
     checkAuthentication();
@@ -318,17 +340,18 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       return;
     }
 
+    const total =
+      (Number(selectedCategory?.price) || 0) * selectedNumbers.length;
+
+    if (paymentMethod === "pix") {
+      await handlePixCheckout(total);
+    } else {
+      await handleCheckoutPro(total);
+    }
+  };
+
+  const handleCheckoutPro = async (total: number) => {
     try {
-      // console.log("Enviando para compra:", {
-      //   eventId: eventoId,
-      //   categoryId: selectedCategory?.category.id,
-      //   passwordIds: selectedPasswordIds,
-      //   selectedNumbers: selectedNumbers,
-      // });
-
-      const total =
-        (Number(selectedCategory?.price) || 0) * selectedNumbers.length;
-
       const { initPoint } = await createCheckoutProSession({
         eventId: eventoId,
         categoryId: selectedCategory?.category.id || "",
@@ -336,11 +359,8 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
         total,
       });
 
-      // redireciona o usuário para o Mercado Pago
       window.location.href = initPoint;
     } catch (error: any) {
-      console.error("Erro no checkout:", error);
-
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -349,6 +369,66 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
       toast({
         title: "Erro no pagamento",
         description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePixCheckout = async (total: number) => {
+    setPixLoading(true);
+    try {
+      if (!authUser?.email) {
+        toast({
+          title: "Dados incompletos",
+          description: "Faça login novamente para usar o Pix.",
+          variant: "destructive",
+        });
+        setPixLoading(false);
+        return;
+      }
+
+      const response = await createPixPayment({
+        eventId: eventoId,
+        categoryId: selectedCategory?.category.id || "",
+        passwordIds: selectedPasswordIds,
+        total,
+        email: authUser.email,
+        first_name: authUser.name?.split(" ")[0] || "",
+        last_name: authUser.name?.split(" ").slice(1).join(" ") || "",
+        doc_type: "CPF",
+        doc_number: authUser.cpf || "",
+      });
+
+      setPixData(response);
+      setShowPixModal(true);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Não foi possível gerar o Pix.";
+
+      toast({
+        title: "Erro ao gerar Pix",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setPixLoading(false);
+    }
+  };
+
+  const copyPixCode = async () => {
+    if (!pixData?.qrCode) return;
+    try {
+      await navigator.clipboard.writeText(pixData.qrCode);
+      toast({
+        title: "Código copiado!",
+        description: "Cole no app do seu banco para pagar.",
+      });
+    } catch {
+      toast({
+        title: "Erro ao copiar",
+        description: "Copie o código manualmente.",
         variant: "destructive",
       });
     }
@@ -693,6 +773,50 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                     </label>
                   </div>
 
+                  {isAuthenticated && selectedNumbers.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Forma de pagamento:
+                      </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("checkout-pro")}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                            paymentMethod === "checkout-pro"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-muted hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          <CreditCard className="h-5 w-5" />
+                          <div className="text-left">
+                            <p>Mercado Pago</p>
+                            <p className="text-xs font-normal text-muted-foreground">
+                              Cartão, boleto, Pix
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("pix")}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                            paymentMethod === "pix"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-muted hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          <QrCode className="h-5 w-5" />
+                          <div className="text-left">
+                            <p>Pix Direto</p>
+                            <p className="text-xs font-normal text-muted-foreground">
+                              QR Code instantâneo
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {!isAuthenticated ? (
                     <div className="space-y-3">
                       <Button
@@ -718,12 +842,28 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                       disabled={
                         selectedNumbers.length === 0 ||
                         !acceptedTerms ||
-                        loadingPasswords
+                        loadingPasswords ||
+                        pixLoading
                       }
                     >
-                      <ShoppingCart className="h-5 w-5 mr-2" />
-                      Finalizar Compra ({selectedNumbers.length} senha
-                      {selectedNumbers.length !== 1 ? "s" : ""})
+                      {pixLoading ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Gerando Pix...
+                        </>
+                      ) : paymentMethod === "pix" ? (
+                        <>
+                          <QrCode className="h-5 w-5 mr-2" />
+                          Pagar com Pix ({selectedNumbers.length} senha
+                          {selectedNumbers.length !== 1 ? "s" : ""})
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="h-5 w-5 mr-2" />
+                          Finalizar Compra ({selectedNumbers.length} senha
+                          {selectedNumbers.length !== 1 ? "s" : ""})
+                        </>
+                      )}
                     </Button>
                   )}
 
@@ -737,6 +877,100 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
           )}
         </div>
       )}
+      {/* Modal Pix QR Code */}
+      <Dialog open={showPixModal} onOpenChange={setShowPixModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <QrCode className="h-5 w-5 text-primary" />
+              Pagamento via Pix
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <p className="text-2xl font-bold text-primary">
+                {formatPrice(
+                  (Number(selectedCategory?.price) || 0) *
+                    selectedNumbers.length
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {selectedNumbers.length} senha
+                {selectedNumbers.length !== 1 ? "s" : ""} -{" "}
+                {selectedCategory &&
+                  getCategoryNameMap(selectedCategory.category.name)}
+              </p>
+            </div>
+
+            {pixData?.qrCodeBase64 && (
+              <div className="flex justify-center">
+                <div className="bg-white p-4 rounded-xl border-2">
+                  <img
+                    src={`data:image/png;base64,${pixData.qrCodeBase64}`}
+                    alt="QR Code Pix"
+                    className="w-56 h-56"
+                  />
+                </div>
+              </div>
+            )}
+
+            {pixData?.qrCode && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-center">
+                  Ou copie o código Pix:
+                </p>
+                <div className="relative">
+                  <div className="bg-muted/50 border-2 rounded-xl p-3 pr-12 text-xs break-all max-h-20 overflow-y-auto font-mono">
+                    {pixData.qrCode}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyPixCode}
+                    className="absolute top-2 right-2 h-8 w-8 p-0"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  onClick={copyPixCode}
+                  className="w-full rounded-xl"
+                  variant="outline"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar código Pix
+                </Button>
+              </div>
+            )}
+
+            <div className="bg-muted/30 rounded-xl p-4 space-y-2">
+              <p className="text-sm font-semibold">Como pagar:</p>
+              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Abra o app do seu banco</li>
+                <li>Escolha pagar com Pix</li>
+                <li>Escaneie o QR Code ou cole o código</li>
+                <li>Confirme o pagamento</li>
+              </ol>
+              <p className="text-xs text-muted-foreground mt-2">
+                O pagamento é processado automaticamente. Suas senhas serão
+                confirmadas em instantes.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPixModal(false)}
+              className="w-full rounded-xl"
+            >
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
